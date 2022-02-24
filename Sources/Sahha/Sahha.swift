@@ -7,7 +7,7 @@ public class Sahha {
     
     public static var shared = Sahha()
     
-    public private(set) var text = "Hello, World!"
+    public private(set) var text = "Hello, Swifty People!"
     public private(set) var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
     
     private init() {
