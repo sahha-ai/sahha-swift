@@ -1,3 +1,3 @@
 # Sahha
 
-A description of this package.
+Sahha Swift SDK for iOS
