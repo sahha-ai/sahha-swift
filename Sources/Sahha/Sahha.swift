@@ -1,3 +1,5 @@
+// Copyright © 2022 Sahha. All rights reserved.
+
 import SwiftUI
 import UIKit
 

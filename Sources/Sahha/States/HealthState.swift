@@ -1,9 +1,4 @@
-//
-//  HealthState.swift
-//  
-//
-//  Created by Matthew on 2/11/22.
-//
+// Copyright © 2022 Sahha. All rights reserved.
 
 import SwiftUI
 import HealthKit
