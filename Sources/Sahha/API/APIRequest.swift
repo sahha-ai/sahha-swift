@@ -2,9 +2,9 @@
 
 import SwiftUI
 
-struct APIRequest {
+class APIRequest {
     
-    func execute<E: Encodable, D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, encodable: E, decodable: D.Type, onComplete: @escaping (Result<D, ApiError>) -> Void) {
+    static func execute<E: Encodable, D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, encodable: E, decodable: D.Type, onComplete: @escaping (Result<D, ApiError>) -> Void) {
         DispatchQueue.global(qos: .background).async {
             let body: Data
             do {
@@ -19,7 +19,7 @@ struct APIRequest {
         }
     }
     
-    func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, canAlert: Bool = true, onComplete: @escaping (Result<D, ApiError>) -> Void) {
+    static func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, canAlert: Bool = true, onComplete: @escaping (Result<D, ApiError>) -> Void) {
         
         guard let url = URL(string: endpoint.path) else {return}
         

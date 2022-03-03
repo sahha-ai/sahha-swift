@@ -36,5 +36,26 @@ public class Sahha {
     public func getBundleId() -> String {
         return Bundle.main.bundleIdentifier ?? "Unknown"
     }
+    
+    public func authenticate(customerId: String, profileId: String, callback: @escaping (String) -> Void) {
+        /*
+        APIController.postAuthentication(body: AuthenticationRequest(customerId: customerId, profileId: profileId)) { result in
+            switch result {
+            case .success(let response):
+                callback(response.token)
+            case .failure(let error):
+                print(error.localizedDescription)
+            }
+        }
+        */
+        APIController.postAuthentication(customerId: customerId, profileId: profileId) { result in
+            switch result {
+            case .success(let response):
+                callback(response.token)
+            case .failure(let error):
+                print(error.localizedDescription)
+            }
+        }
+    }
 }
 
