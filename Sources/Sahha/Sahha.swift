@@ -7,29 +7,30 @@ public class Sahha {
     private var healthState = HealthState()
     private var motionState = MotionState()
     
-    public static var shared = Sahha()
-    
     public private(set) var text = "Hello, Swifty People!"
     public private(set) var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
     
     private init() {
-        print("sahha")
-        let notificationCenter = NotificationCenter.default
-            notificationCenter.addObserver(self, selector: #selector(activate), name: UIApplication.didBecomeActiveNotification, object: nil)
-        
-        notificationCenter.addObserver(self, selector: #selector(deactivate), name: UIApplication.willResignActiveNotification, object: nil)
+        print("Sahha init")
     }
 
-    public func setup() {
-        // force init of shared instance
-        print("setup")
+    public static func configure() {
+        
+        let notificationCenter = NotificationCenter.default
+        notificationCenter.addObserver(self, selector: #selector(Sahha.activate), name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        notificationCenter.addObserver(self, selector: #selector(Sahha.deactivate), name: UIApplication.willResignActiveNotification, object: nil)
+        
+        Credentials.getCredentials()
+        
+        print("Sahha ready")
     }
     
-    @objc private func activate() {
+    @objc static private func activate() {
         print("Sahha activate")
     }
     
-    @objc private func deactivate() {
+    @objc static private func deactivate() {
         print("Sahha deactivate")
     }
     
@@ -37,7 +38,7 @@ public class Sahha {
         return Bundle.main.bundleIdentifier ?? "Unknown"
     }
     
-    public func authenticate(customerId: String, profileId: String, callback: @escaping (String) -> Void) {
+    public static func authenticate(customerId: String, profileId: String, callback: @escaping (String) -> Void) {
         /*
         APIController.postAuthentication(body: AuthenticationRequest(customerId: customerId, profileId: profileId)) { result in
             switch result {
@@ -56,6 +57,20 @@ public class Sahha {
                 print(error.localizedDescription)
             }
         }
+    }
+    
+    // MARK: Credentials
+    
+    public static func getCredentials() -> (customerId: String, profileId: String, token: String) {
+        return (Credentials.customerId ?? "", Credentials.profileId ?? "", Credentials.token ?? "")
+    }
+    
+    public static func setCredentials(customerId: String, profileId: String, token: String) {
+        Credentials.setCredentials(customer: customerId, profile: profileId, token: token)
+    }
+    
+    public static func deleteCredentials() {
+        Credentials.deleteCredentials()
     }
 }
 

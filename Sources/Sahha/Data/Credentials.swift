@@ -14,8 +14,9 @@ class Credentials {
             self.customerId = value
             self.profileId = getProfile(account: value)
             self.token = getToken(account: value)
+            print("Sahha credentials \(value) \(profileId ?? "")")
         } else {
-            print("no credentials")
+            print("Sahha missing credentials")
         }
     }
     
