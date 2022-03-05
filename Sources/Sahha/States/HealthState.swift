@@ -3,17 +3,18 @@
 import SwiftUI
 import HealthKit
 
-class HealthState {
-    private var isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
-    private var authorizationStatus: HKAuthorizationRequestStatus = .unknown
-
-    private var isAuthorized: Bool {
-        authorizationStatus == .unnecessary
+public class HealthState {
+    
+    public enum HealthActivityStatus: Int {
+        case unknown /// Health activity support is unknown
+        case unavailable /// Health activity is not supported by the User's device
+        case disabled /// Motion activity has been disabled by the User
+        case enabled /// Motion activity has been enabled by the User
     }
     
-    private var isNotAuthorized: Bool {
-        authorizationStatus == .shouldRequest
-    }
+    public var activityStatus: HealthActivityStatus = .unknown
+    
+    private var isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     
     private let store: HKHealthStore = HKHealthStore()
     private let sampleTypes = Set([
@@ -23,35 +24,42 @@ class HealthState {
     
     init() {
         print("health")
-        checkAuthorization()
     }
     
-    private func checkAuthorization() {
-        if isAvailable {
-            store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { status, error in
+    func checkAuthorization() {
+        guard isAvailable else {
+            activityStatus = .unavailable
+            return
+        }
+        store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { status, error in
+            DispatchQueue.main.async { [weak self] in
+                
+                guard let self = self else {
+                    return
+                }
+                
                 if let error = error {
                     print("health error")
                     print(error.localizedDescription)
+                    self.activityStatus = .unknown
                     return
                 }
-                DispatchQueue.main.async { [weak self] in
-                    if let self = self {
-                        self.authorizationStatus = status
-                        print("health status \(String(describing: status))")
-                    }
+                
+                switch status {
+                case .unnecessary:
+                    self.activityStatus = .enabled
+                case .shouldRequest:
+                    self.activityStatus = .disabled
+                default:
+                    self.activityStatus = .unknown
                 }
             }
-        } else {
-            print("health not available")
         }
     }
     
-    func requestPermission() {
-        guard isAvailable else {
-            return
-        }
+    public func activate() {
         
-        if isAuthorized {
+        if activityStatus == .enabled || activityStatus == .unavailable {
             return
         }
         
@@ -74,7 +82,7 @@ class HealthState {
     }
     
     func checkHistory() {
-        if isAvailable && isAuthorized {
+        if activityStatus == .enabled {
             checkCategory(typeId: .sleepAnalysis) { [weak self] identifier, anchor, sleepSamples, bedSamples in
                 if sleepSamples.isEmpty == false {
                     self?.postHealthRange(dataType: .timeAsleep, data: sleepSamples, identifier: identifier, anchor: anchor)

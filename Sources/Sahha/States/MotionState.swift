@@ -1,37 +1,62 @@
 // Copyright © 2022 Sahha. All rights reserved.
 
-import Foundation
+import SwiftUI
 import CoreMotion
 
-fileprivate let movementKey = "movementActivityDate"
+fileprivate let motionKey = "motionActivityDate"
 fileprivate let pedometerKey = "pedometerActivityDate"
 
-class MotionState: NSObject, ObservableObject {
-    var isAvailable: Bool = false
-    var isAuthorized: Bool = false
-    var isDenied: Bool = false
+public class MotionState {
+    
+    public enum MotionActivityStatus: Int {
+        case unknown /// Motion activity support is unknown
+        case unavailable /// Motion activity is not supported by the User's device
+        case disabled /// Motion activity has been disabled by the User
+        case enabled /// Motion activity has been enabled by the User
+    }
+    
+    public var activityStatus: MotionActivityStatus = .unknown
     
     private let motionManager: CMMotionManager = CMMotionManager()
     private let motionActivityManager: CMMotionActivityManager = CMMotionActivityManager()
     private let pedometer: CMPedometer = CMPedometer()
+    private var isAvailable: Bool = CMMotionActivityManager.isActivityAvailable() && CMPedometer.isStepCountingAvailable()
     
-    override init() {
-        super.init()
-        checkAuthorization()
+    init() {
+        print("motion")
     }
     
-    @discardableResult func checkAuthorization() -> Bool {
-        isAvailable = CMMotionActivityManager.isActivityAvailable() && CMPedometer.isStepCountingAvailable()
-        isAuthorized = CMMotionActivityManager.authorizationStatus() == .authorized
-        isDenied = CMMotionActivityManager.authorizationStatus() == .denied || CMMotionActivityManager.authorizationStatus() == .restricted
-        return isAuthorized
+    func checkAuthorization() {
+        guard isAvailable else {
+            activityStatus = .unavailable
+            return
+        }
+        switch CMMotionActivityManager.authorizationStatus() {
+        case .authorized:
+            activityStatus = .enabled
+        case .restricted, .denied:
+            activityStatus = .disabled
+        default:
+            activityStatus = .unknown
+        }
     }
     
-    func requestPermission() {
-        // Trigger permissions dialogue
-        motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
-            // Stop tracking
-            self?.motionActivityManager.stopActivityUpdates()
+    /// Authorize Motion Tracking
+    public func activate() {
+        switch CMMotionActivityManager.authorizationStatus() {
+        case .authorized:
+            // Do nothing
+            return
+        case .restricted, .denied:
+            // Open Settings
+            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
+            }
+        default:
+            // Trigger permissions dialogue
+            motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
+                // Stop tracking
+                self?.motionActivityManager.stopActivityUpdates()
+            }
         }
     }
     
@@ -66,9 +91,9 @@ class MotionState: NSObject, ObservableObject {
     }
     
     private func getMovementHistoryData(callback: @escaping ([CMMotionActivity])->Void) {
-        if isAvailable, isAuthorized {
+        if activityStatus == .enabled {
             let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            let lastDate = UserDefaults.standard.date(forKey: movementKey) ?? lastWeek
+            let lastDate = UserDefaults.standard.date(forKey: motionKey) ?? lastWeek
             let numberOfDays = Calendar.current.dateComponents([.day], from: lastDate, to: lastWeek).day ?? 0
             let date = numberOfDays > 0 ? lastWeek : lastDate
             if Calendar.current.isDateInToday(date) == false {
@@ -92,7 +117,7 @@ class MotionState: NSObject, ObservableObject {
     }
     
     private func getPedometerHistoryData(callback: @escaping ([CMPedometerData])->Void) {
-        if CMPedometer.isStepCountingAvailable(), CMPedometer.authorizationStatus() == .authorized {
+        if activityStatus == .enabled {
             let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let lastDate = UserDefaults.standard.date(forKey: pedometerKey) ?? lastWeek
             let numberOfDays = Calendar.current.dateComponents([.day], from: lastDate, to: lastWeek).day ?? 0

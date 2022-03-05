@@ -4,8 +4,8 @@ import SwiftUI
 import UIKit
 
 public class Sahha {
-    private var healthState = HealthState()
-    private var motionState = MotionState()
+    public static var health = HealthState()
+    public static var motion = MotionState()
     
     public private(set) var text = "Hello, Swifty People!"
     public private(set) var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
@@ -22,6 +22,10 @@ public class Sahha {
         notificationCenter.addObserver(self, selector: #selector(Sahha.deactivate), name: UIApplication.willResignActiveNotification, object: nil)
         
         Credentials.getCredentials()
+        
+        health.checkAuthorization()
+        
+        motion.checkAuthorization()
         
         print("Sahha ready")
     }
