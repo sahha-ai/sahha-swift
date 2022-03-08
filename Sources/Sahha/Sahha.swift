@@ -16,26 +16,25 @@ public class Sahha {
 
     public static func configure() {
         
-        let notificationCenter = NotificationCenter.default
-        notificationCenter.addObserver(self, selector: #selector(Sahha.activate), name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
-        notificationCenter.addObserver(self, selector: #selector(Sahha.deactivate), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
         
         Credentials.getCredentials()
         
-        health.checkAuthorization()
+        health.configure()
         
-        motion.checkAuthorization()
+        motion.configure()
         
         print("Sahha ready")
     }
     
-    @objc static private func activate() {
-        print("Sahha activate")
+    @objc static private func onAppOpen() {
+        print("Sahha open")
     }
     
-    @objc static private func deactivate() {
-        print("Sahha deactivate")
+    @objc static private func onAppClose() {
+        print("Sahha close")
     }
     
     public func getBundleId() -> String {

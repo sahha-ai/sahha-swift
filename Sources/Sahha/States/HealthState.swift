@@ -10,11 +10,15 @@ public class HealthState {
         case unavailable /// Health activity is not supported by the User's device
         case disabled /// Motion activity has been disabled by the User
         case enabled /// Motion activity has been enabled by the User
+        
+        public var description: String {
+            String(describing: self)
+        }
     }
     
-    public var activityStatus: HealthActivityStatus = .unknown
+    @Published public private(set) var activityStatus: HealthActivityStatus = .unknown
     
-    private var isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
+    private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     
     private let store: HKHealthStore = HKHealthStore()
     private let sampleTypes = Set([
@@ -24,59 +28,69 @@ public class HealthState {
     
     init() {
         print("health")
+                
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
     
-    func checkAuthorization() {
+    func configure() {
+    }
+    
+    @objc private func onAppOpen() {
+        print("health open")
+        checkAuthorization()
+        checkHistory()
+    }
+    
+    private func checkAuthorization() {
         guard isAvailable else {
             activityStatus = .unavailable
             return
         }
-        store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { status, error in
-            DispatchQueue.main.async { [weak self] in
-                
-                guard let self = self else {
-                    return
-                }
-                
-                if let error = error {
-                    print("health error")
-                    print(error.localizedDescription)
-                    self.activityStatus = .unknown
-                    return
-                }
-                
-                switch status {
-                case .unnecessary:
-                    self.activityStatus = .enabled
-                case .shouldRequest:
-                    self.activityStatus = .disabled
-                default:
-                    self.activityStatus = .unknown
-                }
+        store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { [weak self] status, error in
+            
+            guard let self = self else {
+                return
             }
+            
+            if let error = error {
+                print("health error")
+                print(error.localizedDescription)
+                self.activityStatus = .unknown
+                return
+            }
+            
+            print("health status")
+            switch status {
+            case .unnecessary:
+                self.activityStatus = .enabled
+            case .shouldRequest:
+                self.activityStatus = .disabled
+            default:
+                self.activityStatus = .unknown
+            }
+            print(self.activityStatus.rawValue)
         }
     }
     
-    public func activate() {
+    /// Activate Health - callback with TRUE or FALSE for success
+    public func activate(_ callback: @escaping (HealthActivityStatus)->Void) {
         
-        if activityStatus == .enabled || activityStatus == .unavailable {
+        guard activityStatus == .unknown || activityStatus == .disabled else {
+            callback(activityStatus)
             return
         }
         
-        store.requestAuthorization(toShare: [], read: sampleTypes) { [weak self] success, error in
-            switch success {
-            case true:
-                DispatchQueue.main.async { [weak self] in
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.store.requestAuthorization(toShare: [], read: self?.sampleTypes) { [weak self] success, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print(error.localizedDescription)
+                    }
                     if let self = self {
                         self.checkAuthorization()
+                        callback(self.activityStatus)
                     }
                 }
-                return
-            case false:
-                if let error = error {
-                    print(error.localizedDescription)
-                }
-                return
             }
         }
     }
@@ -91,6 +105,8 @@ public class HealthState {
                     self?.postHealthRange(dataType: .timeInBed, data: bedSamples, identifier: identifier, anchor: anchor)
                 }
             }
+            // Activate in the future
+            /*
             checkQuantity(typeId: .stepCount, unit: .count()) { [weak self] identifier, anchor, samples in
                 self?.postHealthRange(dataType: .stepCount, data: samples, identifier: identifier, anchor: anchor)
             }
@@ -112,6 +128,7 @@ public class HealthState {
             checkQuantity(typeId: .walkingStepLength, unit: .meter()) { [weak self] identifier, anchor, samples in
                 self?.postHealthRange(dataType: .walkingStepLength, data: samples, identifier: identifier, anchor: anchor)
             }
+             */
         }
     }
     

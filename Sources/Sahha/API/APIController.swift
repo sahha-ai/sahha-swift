@@ -11,4 +11,16 @@ class APIController {
     static func postAuthentication(customerId: String, profileId: String, _ onComplete: @escaping (Result<AuthenticationResponse, ApiError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.authentication, "?customerId=\(customerId)", "&profileId=\(profileId)"), .post, decodable: AuthenticationResponse.self, onComplete: onComplete)
     }
+    
+    static func getProfile(profileId: String, _ onComplete: @escaping (Result<ProfileResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.profile, "/\(profileId)"), .get, decodable: ProfileResponse.self, onComplete: onComplete)
+    }
+    
+    static func postProfile(body: ProfileRequest, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.demographic), .post, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
+    static func postDemographic(body: DemographicRequest, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.demographic), .post, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
 }
