@@ -97,38 +97,11 @@ public class HealthState {
     
     func checkHistory() {
         if activityStatus == .enabled {
-            checkCategory(typeId: .sleepAnalysis) { [weak self] identifier, anchor, sleepSamples, bedSamples in
-                if sleepSamples.isEmpty == false {
-                    self?.postHealthRange(dataType: .timeAsleep, data: sleepSamples, identifier: identifier, anchor: anchor)
-                }
-                if bedSamples.isEmpty == false {
-                    self?.postHealthRange(dataType: .timeInBed, data: bedSamples, identifier: identifier, anchor: anchor)
+            checkSleepHistory() { [weak self] identifier, anchor, data in
+                if data.isEmpty == false {
+                    self?.postSleepRange(data: data, identifier: identifier, anchor: anchor)
                 }
             }
-            // Activate in the future
-            /*
-            checkQuantity(typeId: .stepCount, unit: .count()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .stepCount, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .flightsClimbed, unit: .count()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .flightsClimbed, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .distanceWalkingRunning, unit: .meter()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .distanceWalkingRunning, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .walkingSpeed, unit: .meter().unitDivided(by: .second())) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .walkingSpeed, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .walkingDoubleSupportPercentage, unit: .percent()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .walkingDoubleSupportPercentage, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .walkingAsymmetryPercentage, unit: .percent()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .walkingAsymmetryPercentage, data: samples, identifier: identifier, anchor: anchor)
-            }
-            checkQuantity(typeId: .walkingStepLength, unit: .meter()) { [weak self] identifier, anchor, samples in
-                self?.postHealthRange(dataType: .walkingStepLength, data: samples, identifier: identifier, anchor: anchor)
-            }
-             */
         }
     }
     
@@ -149,23 +122,18 @@ public class HealthState {
         }
     }
     
-    func checkCategory(typeId: HKCategoryTypeIdentifier, callback: @escaping (String, HKQueryAnchor, [HealthRequest],[HealthRequest])->Void) {
-        if let sampleType = HKObjectType.categoryType(forIdentifier: typeId) {
+    func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest])->Void) {
+        if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKCategorySample] {
-                    var sleepSamples: [HealthRequest] = []
-                    var bedSamples: [HealthRequest] = []
+                    var requests: [SleepRequest] = []
                     for sample in samples {
-                        let integer = Calendar.current.dateComponents([.minute], from: sample.startDate, to: sample.endDate).minute ?? 0
-                        let double = Double(integer)
-                        let healthSample = HealthRequest(count: double, startDate: sample.startDate, endDate: sample.endDate)
-                        if sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue {
-                            bedSamples.append(healthSample)
-                        } else if sample.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
-                            sleepSamples.append(healthSample)
+                        if sample.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
+                            let request = SleepRequest(startDate: sample.startDate, endDate: sample.endDate)
+                            requests.append(request)
                         }
                     }
-                    callback(sampleType.identifier, anchor, sleepSamples, bedSamples)
+                    callback(sampleType.identifier, anchor, requests)
                 }
             }
         }
@@ -204,6 +172,30 @@ public class HealthState {
         }
         
         store.execute(query)
+    }
+    
+    func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor) {
+        if data.count > 1000 {
+            // Split elements and post
+            let newData = Array(data.prefix(1000))
+            postSleepRange(data: newData, identifier: identifier, anchor: anchor)
+            // Remove elements and recurse
+            let oldData = Array(data[newData.count..<data.count])
+            postSleepRange(data: oldData, identifier: identifier, anchor: anchor)
+        } else {
+            APIController.postSleep(body: data) { result in
+                switch result {
+                case .success(_):
+                    // Save anchor
+                    if let data: Data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: false) {
+                        UserDefaults.standard.set(data, forKey: identifier)
+                    }
+                case .failure(let error):
+                    print(error.localizedDescription)
+                    return
+                }
+            }
+        }
     }
     
     func postHealthRange(dataType: HealthTypeIdentifer, data: [HealthRequest], identifier: String, anchor: HKQueryAnchor) {

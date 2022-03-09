@@ -17,10 +17,14 @@ class APIController {
     }
     
     static func postProfile(body: ProfileRequest, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.demographic), .post, decodable: EmptyResponse.self, onComplete: onComplete)
+        APIRequest.execute(ApiEndpoint(.demographic), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postDemographic(body: DemographicRequest, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.demographic), .post, decodable: EmptyResponse.self, onComplete: onComplete)
+        APIRequest.execute(ApiEndpoint(.demographic), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
+    static func postSleep(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.sleepRange), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
 }
