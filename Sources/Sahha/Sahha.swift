@@ -4,8 +4,8 @@ import SwiftUI
 import UIKit
 
 public class Sahha {
-    public static var health = HealthState()
-    public static var motion = MotionState()
+    public static var health = HealthActivity()
+    public static var motion = MotionActivity()
     
     public private(set) var text = "Hello, Swifty People!"
     public private(set) var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
@@ -68,7 +68,7 @@ public class Sahha {
         return (Credentials.customerId ?? "", Credentials.profileId ?? "", Credentials.token ?? "")
     }
     
-    public static func setCredentials(customerId: String, profileId: String, token: String) {
+    public static func authenticate(customerId: String, profileId: String, token: String) {
         Credentials.setCredentials(customer: customerId, profile: profileId, token: token)
     }
     

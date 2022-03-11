@@ -14,6 +14,17 @@ enum AppInfoIdentifier: String {
     case devicePlatformVersion
 }
 
+public enum ActivityStatus: Int {
+    case unknown /// Activity support is unknown
+    case unavailable /// Activity is not supported by the User's device
+    case disabled /// Activity has been disabled by the User
+    case enabled /// Activity has been enabled by the User
+
+    public var description: String {
+        String(describing: self)
+    }
+}
+
 class SahhaConfig {
     static var environment: EnvironmentIdentifier = .Development
 

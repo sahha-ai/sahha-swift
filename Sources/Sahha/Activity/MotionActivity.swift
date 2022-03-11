@@ -3,27 +3,15 @@
 import SwiftUI
 import CoreMotion
 
-fileprivate let motionKey = "motionActivityDate"
 fileprivate let pedometerKey = "pedometerActivityDate"
 
-public class MotionState {
+public class MotionActivity {
     
-    public enum MotionActivityStatus: Int {
-        case unknown /// Motion activity support is unknown
-        case unavailable /// Motion activity is not supported by the User's device
-        case disabled /// Motion activity has been disabled by the User
-        case enabled /// Motion activity has been enabled by the User
-    
-        public var description: String {
-            String(describing: self)
-        }
-    }
-    
-    @Published public private(set) var activityStatus: MotionActivityStatus = .unknown
+    public private(set) var activityStatus: ActivityStatus = .unknown
     
     private let pedometer: CMPedometer = CMPedometer()
     private let isAvailable: Bool = CMPedometer.isStepCountingAvailable()
-    private var activationCallback: ((MotionActivityStatus)-> Void)?
+    private var activationCallback: ((ActivityStatus)-> Void)?
     
     init() {
         print("motion")
@@ -36,31 +24,35 @@ public class MotionState {
     
     @objc private func onAppOpen() {
         print("motion open")
-        checkAuthorization()
-        if let callback = activationCallback {
-            callback(activityStatus)
-            activationCallback = nil
+        checkAuthorization { [weak self] newStatus in
+            if let callback = self?.activationCallback {
+                callback(newStatus)
+                self?.activationCallback = nil
+            }
+            self?.checkHistory()
         }
-        checkHistory()
     }
     
-    private func checkAuthorization() {
-        guard isAvailable else {
+    private func checkAuthorization(_ callback: ((ActivityStatus)->Void)? = nil) {
+        if isAvailable {
+            switch CMPedometer.authorizationStatus() {
+            case .authorized:
+                activityStatus = .enabled
+            case .restricted, .denied:
+                activityStatus = .disabled
+            default:
+                activityStatus = .unknown
+            }
+        }
+        else {
             activityStatus = .unavailable
-            return
         }
-        switch CMPedometer.authorizationStatus() {
-        case .authorized:
-            activityStatus = .enabled
-        case .restricted, .denied:
-            activityStatus = .disabled
-        default:
-            activityStatus = .unknown
-        }
+        print("motion status : \(activityStatus.description)")
+        callback?(activityStatus)
     }
     
-    /// Activate Motion - callback with result of change to MotionActivityStatus
-    public func activate(_ callback: @escaping (MotionActivityStatus)->Void) {
+    /// Activate Motion - callback with result of change to ActivityStatus
+    public func activate(_ callback: @escaping (ActivityStatus)->Void) {
         
         guard activityStatus == .unknown else {
             callback(activityStatus)
@@ -76,18 +68,17 @@ public class MotionState {
                     } else {
                         print("good")
                     }
-                    if let self = self {
-                        self.checkAuthorization()
-                        callback(self.activityStatus)
-                    }
+                    self?.checkAuthorization({ newStatus in
+                        callback(newStatus)
+                    })
                 }
             }
         }
     }
     
-    public func promptUserToActivate(_ callback: @escaping (MotionActivityStatus)->Void) {
+    public func promptUserToActivate(_ callback: @escaping (ActivityStatus)->Void) {
         if activityStatus == .disabled {
-            self.activationCallback = callback
+            activationCallback = callback
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
             }
         } else {
@@ -97,6 +88,7 @@ public class MotionState {
     
     func checkHistory() {
         if activityStatus == .enabled {
+            print("motion history")
             getPedometerHistoryData { [weak self] data in
                 var requests: [PedometerRequest] = []
                 for item in data {
@@ -104,7 +96,6 @@ public class MotionState {
                     requests.append(request)
                 }
                 if requests.isEmpty == false {
-                    // post data
                     self?.postPemoterRange(data: requests)
                 }
             }

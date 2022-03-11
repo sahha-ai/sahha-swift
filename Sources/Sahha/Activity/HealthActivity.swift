@@ -3,20 +3,9 @@
 import SwiftUI
 import HealthKit
 
-public class HealthState {
+public class HealthActivity {
     
-    public enum HealthActivityStatus: Int {
-        case unknown /// Health activity support is unknown
-        case unavailable /// Health activity is not supported by the User's device
-        case disabled /// Motion activity has been disabled by the User
-        case enabled /// Motion activity has been enabled by the User
-        
-        public var description: String {
-            String(describing: self)
-        }
-    }
-    
-    @Published public private(set) var activityStatus: HealthActivityStatus = .unknown
+    public private(set) var activityStatus: ActivityStatus = .unknown
     
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     
@@ -37,13 +26,15 @@ public class HealthState {
     
     @objc private func onAppOpen() {
         print("health open")
-        checkAuthorization()
-        checkHistory()
+        checkAuthorization { [weak self] _ in
+            self?.checkHistory()
+        }
     }
     
-    private func checkAuthorization() {
+    private func checkAuthorization(_ callback: ((ActivityStatus)->Void)? = nil) {
         guard isAvailable else {
             activityStatus = .unavailable
+            callback?(activityStatus)
             return
         }
         store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { [weak self] status, error in
@@ -56,24 +47,21 @@ public class HealthState {
                 print("health error")
                 print(error.localizedDescription)
                 self.activityStatus = .unknown
-                return
+            } else {
+                switch status {
+                case .unnecessary:
+                    self.activityStatus = .enabled
+                default:
+                    self.activityStatus = .unknown
+                }
             }
-            
-            print("health status")
-            switch status {
-            case .unnecessary:
-                self.activityStatus = .enabled
-            case .shouldRequest:
-                self.activityStatus = .disabled
-            default:
-                self.activityStatus = .unknown
-            }
-            print(self.activityStatus.rawValue)
+            print("health status : \(self.activityStatus.description)")
+            callback?(self.activityStatus)
         }
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func activate(_ callback: @escaping (HealthActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (ActivityStatus)->Void) {
         
         guard activityStatus == .unknown || activityStatus == .disabled else {
             callback(activityStatus)
@@ -86,16 +74,15 @@ public class HealthState {
                     if let error = error {
                         print(error.localizedDescription)
                     }
-                    if let self = self {
-                        self.checkAuthorization()
-                        callback(self.activityStatus)
-                    }
+                    self?.checkAuthorization({ newStatus in
+                        callback(newStatus)
+                    })
                 }
             }
         }
     }
     
-    func checkHistory() {
+    private func checkHistory() {
         if activityStatus == .enabled {
             checkSleepHistory() { [weak self] identifier, anchor, data in
                 if data.isEmpty == false {
@@ -105,7 +92,7 @@ public class HealthState {
         }
     }
     
-    func checkQuantity(typeId: HKQuantityTypeIdentifier, unit: HKUnit, callback: @escaping (String, HKQueryAnchor, [HealthRequest])->Void) {
+    private func checkQuantity(typeId: HKQuantityTypeIdentifier, unit: HKUnit, callback: @escaping (String, HKQueryAnchor, [HealthRequest])->Void) {
         if let sampleType = HKObjectType.quantityType(forIdentifier: typeId) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKQuantitySample] {
@@ -122,7 +109,7 @@ public class HealthState {
         }
     }
     
-    func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest])->Void) {
+    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest])->Void) {
         if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKCategorySample] {
@@ -139,7 +126,7 @@ public class HealthState {
         }
     }
     
-    func checkHistory(sampleType: HKSampleType, callback: @escaping (HKQueryAnchor, [HKSample])->Void) {
+    private func checkHistory(sampleType: HKSampleType, callback: @escaping (HKQueryAnchor, [HKSample])->Void) {
         
         var anchor: HKQueryAnchor?
         // Filter out samples that were added manually by the user
@@ -174,7 +161,7 @@ public class HealthState {
         store.execute(query)
     }
     
-    func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor) {
+    private func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor) {
         if data.count > 1000 {
             // Split elements and post
             let newData = Array(data.prefix(1000))
@@ -196,8 +183,5 @@ public class HealthState {
                 }
             }
         }
-    }
-    
-    func postHealthRange(dataType: HealthTypeIdentifer, data: [HealthRequest], identifier: String, anchor: HKQueryAnchor) {
     }
 }
