@@ -7,8 +7,9 @@ fileprivate let pedometerKey = "pedometerActivityDate"
 
 public class MotionActivity {
     
-    public private(set) var activityStatus: ActivityStatus = .unknown
-    
+    public private(set) var activityStatus: ActivityStatus = .pending
+    public private(set) var activityHistory: [CMPedometerData] = []
+
     private let pedometer: CMPedometer = CMPedometer()
     private let isAvailable: Bool = CMPedometer.isStepCountingAvailable()
     private var activationCallback: ((ActivityStatus)-> Void)?
@@ -41,7 +42,7 @@ public class MotionActivity {
             case .restricted, .denied:
                 activityStatus = .disabled
             default:
-                activityStatus = .unknown
+                activityStatus = .pending
             }
         }
         else {
@@ -54,7 +55,7 @@ public class MotionActivity {
     /// Activate Motion - callback with result of change to ActivityStatus
     public func activate(_ callback: @escaping (ActivityStatus)->Void) {
         
-        guard activityStatus == .unknown else {
+        guard activityStatus == .pending else {
             callback(activityStatus)
             return
         }
@@ -90,6 +91,7 @@ public class MotionActivity {
         if activityStatus == .enabled {
             print("motion history")
             getPedometerHistoryData { [weak self] data in
+                self?.activityHistory = data
                 var requests: [PedometerRequest] = []
                 for item in data {
                     let request = PedometerRequest(item: item)

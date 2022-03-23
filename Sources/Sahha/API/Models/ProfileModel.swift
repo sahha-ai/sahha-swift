@@ -2,7 +2,7 @@
 
 import Foundation
 
-struct DemographicRequest: Codable {
+public struct DemographicRequest: Codable {
     var age: Int?
     var gender: String?
     var occupation: String?

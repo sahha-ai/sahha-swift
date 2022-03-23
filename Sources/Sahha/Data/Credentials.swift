@@ -118,9 +118,9 @@ class Credentials {
     }
     
     static func deleteCredentials() {
-        deleteProfile()
+        //deleteProfile()
         deleteToken()
-        deleteCustomer()
+        //deleteCustomer()
     }
     
     private static func deleteCustomer() {

@@ -7,8 +7,8 @@ public class Sahha {
     public static var health = HealthActivity()
     public static var motion = MotionActivity()
     
-    public private(set) var text = "Hello, Swifty People!"
-    public private(set) var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
+    public private(set) static var text = "Hello, Swifty People!"
+    public private(set) static var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
     
     private init() {
         print("Sahha init")
@@ -37,11 +37,11 @@ public class Sahha {
         print("Sahha close")
     }
     
-    public func getBundleId() -> String {
+    public static func getBundleId() -> String {
         return Bundle.main.bundleIdentifier ?? "Unknown"
     }
     
-    public static func authenticate(customerId: String, profileId: String, callback: @escaping (String) -> Void) {
+    public static func authenticate(customerId: String, profileId: String, callback: @escaping (String?, String?) -> Void) {
         /*
         APIController.postAuthentication(body: AuthenticationRequest(customerId: customerId, profileId: profileId)) { result in
             switch result {
@@ -55,9 +55,11 @@ public class Sahha {
         APIController.postAuthentication(customerId: customerId, profileId: profileId) { result in
             switch result {
             case .success(let response):
-                callback(response.token)
+                Credentials.setCredentials(customer: customerId, profile: profileId, token: response.token)
+                callback(nil, response.token)
             case .failure(let error):
                 print(error.localizedDescription)
+                callback(error.localizedDescription, nil)
             }
         }
     }
@@ -71,9 +73,25 @@ public class Sahha {
     public static func authenticate(customerId: String, profileId: String, token: String) {
         Credentials.setCredentials(customer: customerId, profile: profileId, token: token)
     }
+    /*
+    public static func getProfile(profileId: String, onComplete: @escaping (Result<ProfileResponse, ApiError>) -> Void) {
+        APIController.getProfile(profileId: profileId) { result in
+            
+        }
+    }
     
+    public static func setProfile() {
+        APIController.postDemographic(body: <#T##DemographicRequest#>) { <#Result<EmptyResponse, ApiError>#> in
+            <#code#>
+        }
+    }
+    */
     public static func deleteCredentials() {
         Credentials.deleteCredentials()
+    }
+    
+    public static func analyze() -> String {
+        return "";
     }
 }
 

@@ -3,9 +3,25 @@
 import SwiftUI
 import HealthKit
 
+public struct HealthActivitySample: Encodable, Hashable {
+    public var isAsleep: Bool
+    public var startDate: Date
+    public var endDate: Date
+    public var count: Int
+    
+    init(isAsleep: Bool, startDate: Date, endDate: Date) {
+        self.isAsleep = isAsleep
+        self.startDate = startDate
+        self.endDate = endDate
+        let difference = Calendar.current.dateComponents([.minute], from: startDate, to: endDate)
+        self.count = difference.minute ?? 0
+    }
+}
+
 public class HealthActivity {
     
-    public private(set) var activityStatus: ActivityStatus = .unknown
+    public private(set) var activityStatus: ActivityStatus = .pending
+    public private(set) var activityHistory: [HealthActivitySample] = []
     
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     
@@ -46,13 +62,13 @@ public class HealthActivity {
             if let error = error {
                 print("health error")
                 print(error.localizedDescription)
-                self.activityStatus = .unknown
+                self.activityStatus = .pending
             } else {
                 switch status {
                 case .unnecessary:
                     self.activityStatus = .enabled
                 default:
-                    self.activityStatus = .unknown
+                    self.activityStatus = .pending
                 }
             }
             print("health status : \(self.activityStatus.description)")
@@ -63,7 +79,7 @@ public class HealthActivity {
     /// Activate Health - callback with TRUE or FALSE for success
     public func activate(_ callback: @escaping (ActivityStatus)->Void) {
         
-        guard activityStatus == .unknown || activityStatus == .disabled else {
+        guard activityStatus == .pending || activityStatus == .disabled else {
             callback(activityStatus)
             return
         }
@@ -84,10 +100,11 @@ public class HealthActivity {
     
     private func checkHistory() {
         if activityStatus == .enabled {
-            checkSleepHistory() { [weak self] identifier, anchor, data in
+            checkSleepHistory() { [weak self] identifier, anchor, data, history in
                 if data.isEmpty == false {
                     self?.postSleepRange(data: data, identifier: identifier, anchor: anchor)
                 }
+                self?.activityHistory = history
             }
         }
     }
@@ -109,18 +126,22 @@ public class HealthActivity {
         }
     }
     
-    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest])->Void) {
+    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest], [HealthActivitySample])->Void) {
         if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKCategorySample] {
                     var requests: [SleepRequest] = []
+                    var history: [HealthActivitySample] = []
                     for sample in samples {
                         if sample.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
                             let request = SleepRequest(startDate: sample.startDate, endDate: sample.endDate)
                             requests.append(request)
+                            history.append(HealthActivitySample(isAsleep: true, startDate: sample.startDate, endDate: sample.endDate))
+                        } else {
+                            history.append(HealthActivitySample(isAsleep: false, startDate: sample.startDate, endDate: sample.endDate))
                         }
                     }
-                    callback(sampleType.identifier, anchor, requests)
+                    callback(sampleType.identifier, anchor, requests, history)
                 }
             }
         }

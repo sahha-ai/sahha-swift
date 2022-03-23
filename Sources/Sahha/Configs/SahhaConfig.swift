@@ -15,7 +15,7 @@ enum AppInfoIdentifier: String {
 }
 
 public enum ActivityStatus: Int {
-    case unknown /// Activity support is unknown
+    case pending /// Activity support is pending User permission
     case unavailable /// Activity is not supported by the User's device
     case disabled /// Activity has been disabled by the User
     case enabled /// Activity has been enabled by the User
@@ -32,12 +32,15 @@ class SahhaConfig {
     }
     
     static var apiBasePath: String {
+        return "https://sahhaapi-sandbox.azurewebsites.net/api/"
+        /*
         switch environment {
         case .Production:
             return "https://api.sahha.ai/api/"
         case .Development:
             return "https://sandbox-api.sahha.ai/api/"
         }
+         */
     }
             
     static let sdkVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
