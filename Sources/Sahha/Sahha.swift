@@ -7,15 +7,13 @@ public class Sahha {
     public static var health = HealthActivity()
     public static var motion = MotionActivity()
     
-    public private(set) static var text = "Hello, Swifty People!"
-    public private(set) static var bundleId = Bundle.main.bundleIdentifier ?? "Unknown"
-    
     private init() {
         print("Sahha init")
     }
 
     public static func configure() {
-        
+        print("Sahha configure")
+
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
@@ -25,12 +23,12 @@ public class Sahha {
         health.configure()
         
         motion.configure()
-        
-        print("Sahha ready")
     }
     
-    @objc static private func onAppOpen() {
+    @objc static public func onAppOpen() {
         print("Sahha open")
+        health.onAppOpen()
+        motion.onAppOpen()
     }
     
     @objc static private func onAppClose() {
@@ -42,16 +40,6 @@ public class Sahha {
     }
     
     public static func authenticate(customerId: String, profileId: String, callback: @escaping (String?, String?) -> Void) {
-        /*
-        APIController.postAuthentication(body: AuthenticationRequest(customerId: customerId, profileId: profileId)) { result in
-            switch result {
-            case .success(let response):
-                callback(response.token)
-            case .failure(let error):
-                print(error.localizedDescription)
-            }
-        }
-        */
         APIController.postAuthentication(customerId: customerId, profileId: profileId) { result in
             switch result {
             case .success(let response):
@@ -90,8 +78,27 @@ public class Sahha {
         Credentials.deleteCredentials()
     }
     
-    public static func analyze() -> String {
-        return "";
+    public static func analyze(callback: @escaping (String) -> Void) {
+        let value = """
+\nid :
+kYJk8CCasUeHTz5rvSc9Yw
+    \ncreated_at :
+2022-01-19T21:50:27.564Z
+    \nstate :
+depressed
+    \nsub_state :
+moderate
+    \nrange :
+7
+    \nconfidence :
+0.91
+    \nphenotypes : [
+        \tscreen_time
+        \tsleep
+    ]
+\n
+"""
+        callback(value)
     }
 }
 

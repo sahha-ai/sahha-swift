@@ -15,15 +15,14 @@ public class MotionActivity {
     private var activationCallback: ((ActivityStatus)-> Void)?
     
     init() {
-        print("motion")
-                
-        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
+        print("motion init")
     }
     
     func configure() {
+        print("motion configure")
     }
     
-    @objc private func onAppOpen() {
+    @objc internal func onAppOpen() {
         print("motion open")
         checkAuthorization { [weak self] newStatus in
             if let callback = self?.activationCallback {
@@ -83,7 +82,7 @@ public class MotionActivity {
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
             }
         } else {
-            callback(activityStatus)
+            activate(callback)
         }
     }
     

@@ -32,15 +32,14 @@ public class HealthActivity {
     ])
     
     init() {
-        print("health")
-                
-        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
+        print("health init")
     }
     
     func configure() {
+        print("health configure")
     }
     
-    @objc private func onAppOpen() {
+    @objc internal func onAppOpen() {
         print("health open")
         checkAuthorization { [weak self] _ in
             self?.checkHistory()
