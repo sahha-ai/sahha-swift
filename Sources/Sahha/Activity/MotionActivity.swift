@@ -7,33 +7,46 @@ fileprivate let pedometerKey = "pedometerActivityDate"
 
 public class MotionActivity {
     
-    public private(set) var activityStatus: ActivityStatus = .pending
+    public private(set) var activityStatus: SahhaActivityStatus = .pending
     public private(set) var activityHistory: [CMPedometerData] = []
 
+    private let activitySensors: Set<SahhaSensor> = [.pedometer]
+    private var enabledSensors: Set<SahhaSensor> = []
     private let pedometer: CMPedometer = CMPedometer()
     private let isAvailable: Bool = CMPedometer.isStepCountingAvailable()
-    private var activationCallback: ((ActivityStatus)-> Void)?
+    private var activationCallback: ((SahhaActivityStatus)-> Void)?
     
     init() {
         print("motion init")
     }
     
-    func configure() {
+    func configure(sensors: Set<SahhaSensor>) {
         print("motion configure")
+        enabledSensors = activitySensors.intersection(sensors)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
     }
     
-    @objc internal func onAppOpen() {
+    @objc private func onAppOpen() {
         print("motion open")
         checkAuthorization { [weak self] newStatus in
             if let callback = self?.activationCallback {
                 callback(newStatus)
                 self?.activationCallback = nil
             }
-            self?.checkHistory()
+            if SahhaConfig.postActivityManually == false {
+                self?.postActivity()
+            }
         }
     }
     
-    private func checkAuthorization(_ callback: ((ActivityStatus)->Void)? = nil) {
+    @objc private func onAppClose() {
+        print("motion close")
+    }
+    
+    private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
         if isAvailable {
             switch CMPedometer.authorizationStatus() {
             case .authorized:
@@ -52,7 +65,7 @@ public class MotionActivity {
     }
     
     /// Activate Motion - callback with result of change to ActivityStatus
-    public func activate(_ callback: @escaping (ActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (SahhaActivityStatus)->Void) {
         
         guard activityStatus == .pending else {
             callback(activityStatus)
@@ -76,7 +89,7 @@ public class MotionActivity {
         }
     }
     
-    public func promptUserToActivate(_ callback: @escaping (ActivityStatus)->Void) {
+    public func promptUserToActivate(_ callback: @escaping (SahhaActivityStatus)->Void) {
         if activityStatus == .disabled {
             activationCallback = callback
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
@@ -86,19 +99,26 @@ public class MotionActivity {
         }
     }
     
-    func checkHistory() {
-        if activityStatus == .enabled {
-            print("motion history")
-            getPedometerHistoryData { [weak self] data in
-                self?.activityHistory = data
-                var requests: [PedometerRequest] = []
-                for item in data {
-                    let request = PedometerRequest(item: item)
-                    requests.append(request)
-                }
-                if requests.isEmpty == false {
-                    self?.postPemoterRange(data: requests)
-                }
+    public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
+        guard enabledSensors.contains(.pedometer) else {
+            callback?("Pedometer sensor is missing from Sahha.configure()", false)
+            return
+        }
+        guard activityStatus == .enabled else {
+            callback?("Motion activity is not enabled", false)
+            return
+        }
+        getPedometerHistoryData { [weak self] data in
+            self?.activityHistory = data
+            var requests: [PedometerRequest] = []
+            for item in data {
+                let request = PedometerRequest(item: item)
+                requests.append(request)
+            }
+            if requests.isEmpty == false {
+                self?.postPemoterRange(data: requests, callback: callback)
+            } else {
+                callback?("No new Motion activity since last post", false)
             }
         }
     }
@@ -163,16 +183,17 @@ public class MotionActivity {
         }
     }
     
-    private func postPemoterRange(data: [PedometerRequest]) {
+    private func postPemoterRange(data: [PedometerRequest], callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
         if data.count > 1000 {
             // Split elements and post
             let newData = Array(data.prefix(1000))
             postPemoterRange(data: newData)
             // Remove elements and recurse
             let oldData = Array(data[newData.count..<data.count])
-            postPemoterRange(data: oldData)
+            postPemoterRange(data: oldData, callback: callback)
         } else {
             // fill in
+            callback?(nil, true)
         }
     }
 }

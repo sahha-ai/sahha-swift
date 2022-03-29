@@ -11,32 +11,35 @@ public class Sahha {
         print("Sahha init")
     }
 
-    public static func configure() {
+    public static func configure(environment: SahhaEnvironment = .development, sensors: Set<SahhaSensor> = [.sleep, .pedometer, .device], postActivityManually: Bool = false
+    ) {
         print("Sahha configure")
-
-        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
-        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+        SahhaConfig.environment = environment
+        
+        SahhaConfig.postActivityManually = postActivityManually
         
         Credentials.getCredentials()
         
-        health.configure()
+        health.configure(sensors: sensors)
         
-        motion.configure()
+        motion.configure(sensors: sensors)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
     }
     
-    @objc static public func onAppOpen() {
+    public static func launch() {
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+    
+    @objc static private func onAppOpen() {
         print("Sahha open")
-        health.onAppOpen()
-        motion.onAppOpen()
     }
     
     @objc static private func onAppClose() {
         print("Sahha close")
-    }
-    
-    public static func getBundleId() -> String {
-        return Bundle.main.bundleIdentifier ?? "Unknown"
     }
     
     public static func authenticate(customerId: String, profileId: String, callback: @escaping (String?, String?) -> Void) {

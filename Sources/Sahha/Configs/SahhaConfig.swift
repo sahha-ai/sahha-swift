@@ -2,19 +2,25 @@
 
 import SwiftUI
 
-enum EnvironmentIdentifier: String {
-    case Development
-    case Production
+public enum SahhaEnvironment: String {
+    case development
+    case production
 }
 
-enum AppInfoIdentifier: String {
+public enum SahhaSensor: String {
+    case sleep
+    case pedometer
+    case device
+}
+
+enum SahhaAppInfo: String {
     case sdkVersion
     case deviceModel
     case devicePlatform
     case devicePlatformVersion
 }
 
-public enum ActivityStatus: Int {
+public enum SahhaActivityStatus: Int {
     case pending /// Activity support is pending User permission
     case unavailable /// Activity is not supported by the User's device
     case disabled /// Activity has been disabled by the User
@@ -26,7 +32,8 @@ public enum ActivityStatus: Int {
 }
 
 class SahhaConfig {
-    static var environment: EnvironmentIdentifier = .Development
+    static var environment: SahhaEnvironment = .development
+    static var postActivityManually: Bool = false
 
     init() {
     }

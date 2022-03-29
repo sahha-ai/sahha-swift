@@ -20,35 +20,56 @@ public struct HealthActivitySample: Encodable, Hashable {
 
 public class HealthActivity {
     
-    public private(set) var activityStatus: ActivityStatus = .pending
+    public private(set) var activityStatus: SahhaActivityStatus = .pending
     public private(set) var activityHistory: [HealthActivitySample] = []
     
+    private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
+    private var enabledSensors: Set<SahhaSensor> = []
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
-    
     private let store: HKHealthStore = HKHealthStore()
-    private let sampleTypes = Set([
-        HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
-        HKObjectType.quantityType(forIdentifier: .stepCount)!,
-    ])
+    private var sampleTypes: Set<HKObjectType> = []
     
     init() {
         print("health init")
     }
     
-    func configure() {
+    func configure(sensors: Set<SahhaSensor>) {
         print("health configure")
+        enabledSensors = activitySensors.intersection(sensors)
+        sampleTypes = []
+        if enabledSensors.contains(.sleep) {
+            sampleTypes.insert(HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
+        }
+        if enabledSensors.contains(.pedometer) {
+            sampleTypes.insert(HKObjectType.quantityType(forIdentifier: .stepCount)!)
+        }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
     }
     
-    @objc internal func onAppOpen() {
+    @objc private func onAppOpen() {
         print("health open")
         checkAuthorization { [weak self] _ in
-            self?.checkHistory()
+            if SahhaConfig.postActivityManually == false {
+                self?.postActivity()
+            }
         }
     }
     
-    private func checkAuthorization(_ callback: ((ActivityStatus)->Void)? = nil) {
+    @objc private func onAppClose() {
+        print("health close")
+    }
+    
+    private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
         guard isAvailable else {
             activityStatus = .unavailable
+            callback?(activityStatus)
+            return
+        }
+        guard sampleTypes.isEmpty == false else {
+            activityStatus = .pending
             callback?(activityStatus)
             return
         }
@@ -76,7 +97,7 @@ public class HealthActivity {
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func activate(_ callback: @escaping (ActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (SahhaActivityStatus)->Void) {
         
         guard activityStatus == .pending || activityStatus == .disabled else {
             callback(activityStatus)
@@ -97,13 +118,21 @@ public class HealthActivity {
         }
     }
     
-    private func checkHistory() {
-        if activityStatus == .enabled {
-            checkSleepHistory() { [weak self] identifier, anchor, data, history in
-                if data.isEmpty == false {
-                    self?.postSleepRange(data: data, identifier: identifier, anchor: anchor)
-                }
-                self?.activityHistory = history
+    public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
+        guard enabledSensors.contains(.sleep) else {
+            callback?("Sleep sensor is missing from Sahha.configure()", false)
+            return
+        }
+        guard activityStatus == .enabled else {
+            callback?("Health activity is not enabled", false)
+            return
+        }
+        checkSleepHistory() { [weak self] identifier, anchor, data, history in
+            self?.activityHistory = history
+            if data.isEmpty == false {
+                self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
+            } else {
+                callback?("No new Health activity since last post", false)
             }
         }
     }
@@ -181,14 +210,14 @@ public class HealthActivity {
         store.execute(query)
     }
     
-    private func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor) {
+    private func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor, callback: ((_ error: String?, _ success: Bool)-> Void)? = nil) {
         if data.count > 1000 {
             // Split elements and post
             let newData = Array(data.prefix(1000))
             postSleepRange(data: newData, identifier: identifier, anchor: anchor)
             // Remove elements and recurse
             let oldData = Array(data[newData.count..<data.count])
-            postSleepRange(data: oldData, identifier: identifier, anchor: anchor)
+            postSleepRange(data: oldData, identifier: identifier, anchor: anchor, callback: callback)
         } else {
             APIController.postSleep(body: data) { result in
                 switch result {
@@ -197,9 +226,10 @@ public class HealthActivity {
                     if let data: Data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: false) {
                         UserDefaults.standard.set(data, forKey: identifier)
                     }
+                    callback?(nil, true)
                 case .failure(let error):
                     print(error.localizedDescription)
-                    return
+                    callback?(error.localizedDescription, false)
                 }
             }
         }
