@@ -52,7 +52,7 @@ public class HealthActivity {
     @objc private func onAppOpen() {
         print("health open")
         checkAuthorization { [weak self] _ in
-            if SahhaConfig.postActivityManually == false {
+            if Sahha.settings.postActivityManually == false {
                 self?.postActivity()
             }
         }

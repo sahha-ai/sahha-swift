@@ -7,7 +7,7 @@ public enum SahhaEnvironment: String {
     case production
 }
 
-public enum SahhaSensor: String {
+public enum SahhaSensor: String, CaseIterable {
     case sleep
     case pedometer
     case device
@@ -18,6 +18,15 @@ enum SahhaAppInfo: String {
     case deviceModel
     case devicePlatform
     case devicePlatformVersion
+}
+
+public enum SahhaActivity: String {
+    case motion
+    case health
+}
+    
+public enum SahhaError: Error {
+    case woops
 }
 
 public enum SahhaActivityStatus: Int {
@@ -32,22 +41,17 @@ public enum SahhaActivityStatus: Int {
 }
 
 class SahhaConfig {
-    static var environment: SahhaEnvironment = .development
-    static var postActivityManually: Bool = false
 
     init() {
     }
     
     static var apiBasePath: String {
-        return "https://sahhaapi-sandbox.azurewebsites.net/api/"
-        /*
-        switch environment {
-        case .Production:
+        switch Sahha.settings.environment {
+        case .production:
             return "https://api.sahha.ai/api/"
-        case .Development:
+        case .development:
             return "https://sandbox-api.sahha.ai/api/"
         }
-         */
     }
             
     static let sdkVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"

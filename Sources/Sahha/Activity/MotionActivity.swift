@@ -36,7 +36,7 @@ public class MotionActivity {
                 callback(newStatus)
                 self?.activationCallback = nil
             }
-            if SahhaConfig.postActivityManually == false {
+            if Sahha.settings.postActivityManually == false {
                 self?.postActivity()
             }
         }

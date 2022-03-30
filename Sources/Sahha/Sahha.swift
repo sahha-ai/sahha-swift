@@ -3,7 +3,30 @@
 import SwiftUI
 import UIKit
 
+public struct SahhaSettings {
+    public let environment: SahhaEnvironment
+    public let sensors: Set<SahhaSensor>
+    public let postActivityManually: Bool
+    
+    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postActivityManually: Bool? = nil) {
+        self.environment = environment
+        if let sensors = sensors {
+            // If list is specified, add only those sensors
+            self.sensors = sensors
+        } else {
+            // If list is nil, add all possible sensors
+            var sensors: Set<SahhaSensor> = []
+            for sensor in SahhaSensor.allCases {
+                sensors.insert(sensor)
+            }
+            self.sensors = sensors
+        }
+        self.postActivityManually = postActivityManually ?? false
+    }
+}
+
 public class Sahha {
+    public static var settings = SahhaSettings(environment: .development)
     public static var health = HealthActivity()
     public static var motion = MotionActivity()
     
@@ -11,27 +34,34 @@ public class Sahha {
         print("Sahha init")
     }
 
-    public static func configure(environment: SahhaEnvironment = .development, sensors: Set<SahhaSensor> = [.sleep, .pedometer, .device], postActivityManually: Bool = false
+    /** Configure the Sahha SDK
+    - Parameters:
+    - environment: SahhaEnvironment // Development or Production
+    - sensors: Set<SahhaSensor> = [.sleep, .pedometer, .device] // A list of sensors to monitor
+    - postActivityManually: Bool = false // Override Sahha automatic data collection
+     */
+    public static func configure(_ settings: SahhaSettings
     ) {
         print("Sahha configure")
         
-        SahhaConfig.environment = environment
-        
-        SahhaConfig.postActivityManually = postActivityManually
+        Self.settings = settings
         
         Credentials.getCredentials()
         
-        health.configure(sensors: sensors)
+        health.configure(sensors: settings.sensors)
         
-        motion.configure(sensors: sensors)
+        motion.configure(sensors: settings.sensors)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
     }
     
+    /// Launch the Sahha SDK immediately after configure
     public static func launch() {
-        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        }
     }
     
     @objc static private func onAppOpen() {
@@ -41,6 +71,8 @@ public class Sahha {
     @objc static private func onAppClose() {
         print("Sahha close")
     }
+    
+    // MARK: - Authentication
     
     public static func authenticate(customerId: String, profileId: String, callback: @escaping (String?, String?) -> Void) {
         APIController.postAuthentication(customerId: customerId, profileId: profileId) { result in
@@ -80,6 +112,8 @@ public class Sahha {
     public static func deleteCredentials() {
         Credentials.deleteCredentials()
     }
+    
+    // MARK: - Analyzation
     
     public static func analyze(callback: @escaping (String) -> Void) {
         let value = """

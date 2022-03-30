@@ -21,11 +21,11 @@ class Credentials {
     }
     
     private static func getCustomer() -> String? {
-        return get(account: SahhaConfig.environment.rawValue, server: SahhaConfig.apiBasePath)
+        return get(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath)
     }
     
     private static func getProfile(account: String) -> String? {
-        return get(account: account, server: SahhaConfig.environment.rawValue)
+        return get(account: account, server: Sahha.settings.environment.rawValue)
     }
     
     private static func getToken(account: String)  -> String? {
@@ -65,11 +65,11 @@ class Credentials {
     }
     
     private static func setCustomer(value: String) {
-        self.customerId = set(account: SahhaConfig.environment.rawValue, server: SahhaConfig.apiBasePath, value: value)
+        self.customerId = set(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: value)
     }
     
     private static func setProfile(account: String, value: String) {
-        self.profileId = set(account: account, server: SahhaConfig.environment.rawValue, value: value)
+        self.profileId = set(account: account, server: Sahha.settings.environment.rawValue, value: value)
     }
     
     private static func setToken(account: String, value: String) {
@@ -124,11 +124,11 @@ class Credentials {
     }
     
     private static func deleteCustomer() {
-        self.customerId = delete(account: SahhaConfig.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.customerId)
+        self.customerId = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.customerId)
     }
     
     private static func deleteProfile() {
-        self.profileId = delete(account: self.customerId, server: SahhaConfig.environment.rawValue, value: self.profileId)
+        self.profileId = delete(account: self.customerId, server: Sahha.settings.environment.rawValue, value: self.profileId)
     }
     
     private static func deleteToken() {
