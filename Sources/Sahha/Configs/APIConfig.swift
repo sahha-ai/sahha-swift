@@ -36,6 +36,7 @@ class ApiEndpoint {
         case lockRange = "deviceActivity/lockRange"
         case profile = "profile"
         case demographic = "profile/demographic"
+        case analyze = "profile/analyze"
         case sleepRange = "sleep/logRange"
     }
     

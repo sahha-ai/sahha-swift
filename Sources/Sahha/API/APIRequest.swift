@@ -29,11 +29,10 @@ class APIRequest {
 
         if endpoint.isAuthRequired {
             if let token = Credentials.token {
-                let authValue = "Bearer \(token)"
-                urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
+                urlRequest.addValue(token, forHTTPHeaderField: "Authorization")
             } else {
                 // cancel request
-                print("canceling ", url.absoluteString)
+                print("Sahha | Aborting unauthorized API call to ", url.absoluteString)
                 onComplete(.failure(.authError))
                 return
             }
@@ -49,13 +48,13 @@ class APIRequest {
         
         // Don't fetch the same task at the same time
         if ApiEndpoint.activeTasks.contains(endpoint.path) {
-            print("NOT trying ", url.absoluteString)
+            print("Sahha | Aborting duplicated API call to ", url.absoluteString)
             return
         }
         
         ApiEndpoint.activeTasks.append(endpoint.path)
 
-        print("trying ", url.absoluteString)
+        print("Sahha | Trying API call to ", url.absoluteString)
         
         if let body = body {
             urlRequest.httpBody = body
@@ -85,7 +84,7 @@ class APIRequest {
             
             // Token has expired
             if urlResponse.statusCode == 401, let customerId = Credentials.customerId, customerId.isEmpty == false, let profileId = Credentials.profileId, profileId.isEmpty == false {
-                print("token expired")
+                print("Sahha | Authorization token is expired")
                 
                 // get new token
                 return

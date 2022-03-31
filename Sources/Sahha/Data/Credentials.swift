@@ -14,9 +14,9 @@ class Credentials {
             self.customerId = value
             self.profileId = getProfile(account: value)
             self.token = getToken(account: value)
-            print("Sahha credentials \(value) \(profileId ?? "")")
+            print("Sahha | Credentials OK")
         } else {
-            print("Sahha missing credentials")
+            print("Sahha | Credentials missing")
         }
     }
     
@@ -45,14 +45,14 @@ class Credentials {
         let status = SecItemCopyMatching(query, &result)
         
         guard status == errSecSuccess else {
-            print ("credentials get error")
+            print ("Sahha | Credentials get error")
             print(SecCopyErrorMessageString(status, nil) as String? ?? "error")
                 return nil
         }
         if let data = result as? Data, let string = String(data: data, encoding: .utf8) {
             return string
         } else {
-            print ("credentials get data error")
+            print ("Sahha | Credentials get data error")
         }
         
         return nil
@@ -78,7 +78,7 @@ class Credentials {
 
     private static func set(account: String, server: String, value: String) -> String? {
         guard let data = value.data(using: .utf8) else {
-            print("credentials set data error")
+            print("Sahha | Credentials set data error")
             return nil
         }
         let query = [
@@ -92,7 +92,6 @@ class Credentials {
         let status = SecItemAdd(query, nil)
 
         if status == errSecDuplicateItem {
-            print("credentials update")
             // Item already exist - update it.
             let query = [
                 kSecAttrAccount: account,
@@ -106,13 +105,14 @@ class Credentials {
             let status = SecItemUpdate(query, queryUpdate)
             
             if status == errSecSuccess {
+                print("Sahha | Credentials updated")
                 return value
             } else {
-                print("credentials set error")
+                print("Sahha | Credentials update error")
             }
             return nil
         } else {
-            print("credentials set")
+            print("Sahha | Credentials set")
             return value
         }
     }
@@ -137,7 +137,7 @@ class Credentials {
     
     private static func delete(account: String?, server: String, value: String?) -> String? {
         guard let account = account else {
-            print ("credentials delete data error")
+            print ("Sahha | Credentials delete data error")
             return value
         }
             
@@ -151,12 +151,12 @@ class Credentials {
         let status = SecItemDelete(query)
         
         guard status == errSecSuccess else {
-            print ("credentials delete error")
+            print ("Sahha | Credentials delete error")
             print(SecCopyErrorMessageString(status, nil) as String? ?? "error")
                 return value
         }
         
-        print ("credentials delete")
+        print ("Sahha | Credentials deleted")
         return nil
     }
 }

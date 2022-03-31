@@ -17,20 +17,20 @@ public class MotionActivity {
     private var activationCallback: ((SahhaActivityStatus)-> Void)?
     
     init() {
-        print("motion init")
+        print("Sahha | Motion init")
     }
     
     func configure(sensors: Set<SahhaSensor>) {
-        print("motion configure")
         enabledSensors = activitySensors.intersection(sensors)
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+        
+        print("Sahha | Motion configured")
     }
     
     @objc private func onAppOpen() {
-        print("motion open")
         checkAuthorization { [weak self] newStatus in
             if let callback = self?.activationCallback {
                 callback(newStatus)
@@ -43,7 +43,6 @@ public class MotionActivity {
     }
     
     @objc private func onAppClose() {
-        print("motion close")
     }
     
     private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
@@ -60,7 +59,7 @@ public class MotionActivity {
         else {
             activityStatus = .unavailable
         }
-        print("motion status : \(activityStatus.description)")
+        print("Sahha | Motion activity status : \(activityStatus.description)")
         callback?(activityStatus)
     }
     
@@ -76,10 +75,8 @@ public class MotionActivity {
             self?.pedometer.queryPedometerData(from: Date(), to: Date()) {[weak self] data, error in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("bad")
+                        print("Sahha | Pedometer error")
                         print(error.localizedDescription)
-                    } else {
-                        print("good")
                     }
                     self?.checkAuthorization({ newStatus in
                         callback(newStatus)
@@ -101,11 +98,11 @@ public class MotionActivity {
     
     public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
         guard enabledSensors.contains(.pedometer) else {
-            callback?("Pedometer sensor is missing from Sahha.configure()", false)
+            callback?("Sahha | Pedometer sensor is missing from Sahha.configure()", false)
             return
         }
         guard activityStatus == .enabled else {
-            callback?("Motion activity is not enabled", false)
+            callback?("Sahha | Motion activity is not enabled", false)
             return
         }
         getPedometerHistoryData { [weak self] data in
@@ -118,7 +115,7 @@ public class MotionActivity {
             if requests.isEmpty == false {
                 self?.postPemoterRange(data: requests, callback: callback)
             } else {
-                callback?("No new Motion activity since last post", false)
+                callback?("Sahha | No new Motion activity since last post", false)
             }
         }
     }

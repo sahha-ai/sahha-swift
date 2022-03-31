@@ -31,7 +31,7 @@ public class Sahha {
     public static var motion = MotionActivity()
     
     private init() {
-        print("Sahha init")
+        print("Sahha | SDK init")
     }
 
     /** Configure the Sahha SDK
@@ -42,8 +42,6 @@ public class Sahha {
      */
     public static func configure(_ settings: SahhaSettings
     ) {
-        print("Sahha configure")
-        
         Self.settings = settings
         
         Credentials.getCredentials()
@@ -55,6 +53,8 @@ public class Sahha {
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+        
+        print("Sahha | SDK configured")
     }
     
     /// Launch the Sahha SDK immediately after configure
@@ -65,11 +65,9 @@ public class Sahha {
     }
     
     @objc static private func onAppOpen() {
-        print("Sahha open")
     }
     
     @objc static private func onAppClose() {
-        print("Sahha close")
     }
     
     // MARK: - Authentication
@@ -79,7 +77,7 @@ public class Sahha {
             switch result {
             case .success(let response):
                 Credentials.setCredentials(customer: customerId, profile: profileId, token: response.token)
-                callback(nil, response.token)
+                callback(nil, "Sahha authorization success")
             case .failure(let error):
                 print(error.localizedDescription)
                 callback(error.localizedDescription, nil)
@@ -87,15 +85,8 @@ public class Sahha {
         }
     }
     
-    // MARK: Credentials
+    // MARK: Profile
     
-    public static func getCredentials() -> (customerId: String, profileId: String, token: String) {
-        return (Credentials.customerId ?? "", Credentials.profileId ?? "", Credentials.token ?? "")
-    }
-    
-    public static func authenticate(customerId: String, profileId: String, token: String) {
-        Credentials.setCredentials(customer: customerId, profile: profileId, token: token)
-    }
     /*
     public static func getProfile(profileId: String, onComplete: @escaping (Result<ProfileResponse, ApiError>) -> Void) {
         APIController.getProfile(profileId: profileId) { result in
@@ -109,33 +100,27 @@ public class Sahha {
         }
     }
     */
-    public static func deleteCredentials() {
-        Credentials.deleteCredentials()
-    }
     
     // MARK: - Analyzation
     
-    public static func analyze(callback: @escaping (String) -> Void) {
-        let value = """
-\nid :
-kYJk8CCasUeHTz5rvSc9Yw
-    \ncreated_at :
-2022-01-19T21:50:27.564Z
-    \nstate :
-depressed
-    \nsub_state :
-moderate
-    \nrange :
-7
-    \nconfidence :
-0.91
-    \nphenotypes : [
-        \tscreen_time
-        \tsleep
-    ]
-\n
-"""
-        callback(value)
+    public static func analyze(callback: @escaping (String?, String?) -> Void) {
+        APIController.getAnalyzation { result in
+            switch result {
+            case .success(let response):
+                do {
+                    let jsonEncoder = JSONEncoder()
+                    jsonEncoder.outputFormatting = .prettyPrinted
+                    let jsonData = try jsonEncoder.encode(response)
+                    let jsonString = String(data: jsonData, encoding: .utf8)
+                    callback(nil, jsonString)
+                } catch {
+                    callback("Analyzation data encoding error", nil)
+                }
+            case .failure(let error):
+                print(error.localizedDescription)
+                callback(error.localizedDescription, nil)
+            }
+        }
     }
 }
 

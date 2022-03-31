@@ -30,11 +30,10 @@ public class HealthActivity {
     private var sampleTypes: Set<HKObjectType> = []
     
     init() {
-        print("health init")
+        print("Sahha | Health init")
     }
     
     func configure(sensors: Set<SahhaSensor>) {
-        print("health configure")
         enabledSensors = activitySensors.intersection(sensors)
         sampleTypes = []
         if enabledSensors.contains(.sleep) {
@@ -47,10 +46,10 @@ public class HealthActivity {
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+        print("Sahha | Health configured")
     }
     
     @objc private func onAppOpen() {
-        print("health open")
         checkAuthorization { [weak self] _ in
             if Sahha.settings.postActivityManually == false {
                 self?.postActivity()
@@ -59,7 +58,6 @@ public class HealthActivity {
     }
     
     @objc private func onAppClose() {
-        print("health close")
     }
     
     private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
@@ -80,7 +78,7 @@ public class HealthActivity {
             }
             
             if let error = error {
-                print("health error")
+                print("Sahha | Health error")
                 print(error.localizedDescription)
                 self.activityStatus = .pending
             } else {
@@ -91,7 +89,7 @@ public class HealthActivity {
                     self.activityStatus = .pending
                 }
             }
-            print("health status : \(self.activityStatus.description)")
+            print("Sahha | Health activity status : \(self.activityStatus.description)")
             callback?(self.activityStatus)
         }
     }
@@ -120,11 +118,11 @@ public class HealthActivity {
     
     public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
         guard enabledSensors.contains(.sleep) else {
-            callback?("Sleep sensor is missing from Sahha.configure()", false)
+            callback?("Sahha | Sleep sensor is missing from Sahha.configure()", false)
             return
         }
         guard activityStatus == .enabled else {
-            callback?("Health activity is not enabled", false)
+            callback?("Sahha | Health activity is not enabled", false)
             return
         }
         checkSleepHistory() { [weak self] identifier, anchor, data, history in
@@ -132,7 +130,7 @@ public class HealthActivity {
             if data.isEmpty == false {
                 self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
             } else {
-                callback?("No new Health activity since last post", false)
+                callback?("Sahha | No new Health activity since last post", false)
             }
         }
     }
@@ -184,11 +182,9 @@ public class HealthActivity {
         // check if a previous anchor exists
         if let data = UserDefaults.standard.object(forKey: sampleType.identifier) as? Data, let object = try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data) {
             anchor = object
-            print("old anchor " + sampleType.identifier)
             compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [sourcePredicate])
 
         } else {
-            print("empty anchor " + sampleType.identifier)
             let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let timePredicate = HKAnchoredObjectQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictEndDate)
             compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [timePredicate, sourcePredicate])
