@@ -14,7 +14,6 @@ public class MotionActivity {
     private var enabledSensors: Set<SahhaSensor> = []
     private let pedometer: CMPedometer = CMPedometer()
     private let isAvailable: Bool = CMPedometer.isStepCountingAvailable()
-    private var activationCallback: ((SahhaActivityStatus)-> Void)?
     
     init() {
         print("Sahha | Motion init")
@@ -31,11 +30,7 @@ public class MotionActivity {
     }
     
     @objc private func onAppOpen() {
-        checkAuthorization { [weak self] newStatus in
-            if let callback = self?.activationCallback {
-                callback(newStatus)
-                self?.activationCallback = nil
-            }
+        checkAuthorization { [weak self] _ in
             if Sahha.settings.postActivityManually == false {
                 self?.postActivity()
             }
@@ -83,16 +78,6 @@ public class MotionActivity {
                     })
                 }
             }
-        }
-    }
-    
-    public func promptUserToActivate(_ callback: @escaping (SahhaActivityStatus)->Void) {
-        if activityStatus == .disabled {
-            activationCallback = callback
-            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
-            }
-        } else {
-            activate(callback)
         }
     }
     

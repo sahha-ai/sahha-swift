@@ -122,5 +122,10 @@ public class Sahha {
             }
         }
     }
+    
+    public static func openAppSettings() {
+        UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
+        }
+    }
 }
 
