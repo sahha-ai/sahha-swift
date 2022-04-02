@@ -32,7 +32,7 @@ class APIRequest {
                 urlRequest.addValue(token, forHTTPHeaderField: "Authorization")
             } else {
                 // cancel request
-                print("Sahha | Aborting unauthorized API call to ", url.absoluteString)
+                print("Sahha | Aborting unauthorized", method.rawValue, url.absoluteString)
                 onComplete(.failure(.authError))
                 return
             }
@@ -48,13 +48,13 @@ class APIRequest {
         
         // Don't fetch the same task at the same time
         if ApiEndpoint.activeTasks.contains(endpoint.path) {
-            print("Sahha | Aborting duplicated API call to ", url.absoluteString)
+            print("Sahha | Aborting duplicated", method.rawValue, url.absoluteString)
             return
         }
         
         ApiEndpoint.activeTasks.append(endpoint.path)
 
-        print("Sahha | Trying API call to ", url.absoluteString)
+        print("Sahha | Trying", method.rawValue, url.absoluteString)
         
         if let body = body {
             urlRequest.httpBody = body

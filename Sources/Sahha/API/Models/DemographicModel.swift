@@ -2,43 +2,24 @@
 
 import Foundation
 
-public struct DemographicRequest: Codable {
-    var age: Int?
-    var gender: String?
-    var occupation: String?
-    var ethnicity: String?
-    var country: String?
-    var industry: String?
-    var incomeRange: String?
-    var education: String?
-    var relationship: String?
-    var locale: String?
-    var livingArrangement: String?
-}
-
-
-struct ProfileRequest: Codable {
-    var id: String
-    var version: Int
-    var customerId: String
-}
-
-struct ProfileResponse: Decodable {
-    var id: String
-    var version: Int
-    var customerId: String
-}
-
-struct DemographicResponse: Decodable {
-    var age: Int?
-    var gender: String?
-    var occupation: String?
-    var ethnicity: String?
-    var country: String?
-    var industry: String?
-    var incomeRange: String?
-    var education: String?
-    var relationship: String?
-    var locale: String?
-    var livingArrangement: String?
+public struct SahhaDemographic: Codable {
+    public var age: Int?
+    public var gender: String?
+    public var country: String?
+    public var birthCountry: String?
+    public var ethnicity: String?
+    public var occupation: String?
+    public var industry: String?
+    public var incomeRange: String?
+    public var education: String?
+    public var relationship: String?
+    public var locale: String?
+    public var livingArrangement: String?
+    
+    public init(age: Int? = nil, gender: String? = nil, country: String? = nil, birthCountry: String? = nil) {
+        self.age = age
+        self.gender = gender
+        self.country = country
+        self.birthCountry = birthCountry
+    }
 }

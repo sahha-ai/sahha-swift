@@ -20,8 +20,12 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func postDemographic(body: DemographicRequest, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.demographic), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    static func getDemographic(_ onComplete: @escaping (Result<SahhaDemographic, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.demographic), .get, decodable: SahhaDemographic.self, onComplete: onComplete)
+    }
+    
+    static func putDemographic(body: SahhaDemographic, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.demographic), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func getAnalyzation(_ onComplete: @escaping (Result<AnalyzationResponse, ApiError>) -> Void) {

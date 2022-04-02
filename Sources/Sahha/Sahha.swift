@@ -101,6 +101,33 @@ public class Sahha {
     }
     */
     
+    // MARK: - Demographic
+    
+    public static func getDemographic(callback: @escaping (String?, SahhaDemographic?) -> Void) {
+        APIController.getDemographic { result in
+            switch result {
+            case .success(let response):
+                callback(nil, response)
+            case .failure(let error):
+                print("sorry")
+                print(error.localizedDescription)
+                callback(error.localizedDescription, nil)
+            }
+        }
+    }
+    
+    public static func postDemographic(_ demographic: SahhaDemographic, callback: @escaping (String?, Bool) -> Void) {
+        APIController.putDemographic(body: demographic) { result in
+            switch result {
+            case .success(_):
+                callback(nil, true)
+            case .failure(let error):
+                print(error.localizedDescription)
+                callback(error.localizedDescription, false)
+            }
+        }
+    }
+    
     // MARK: - Analyzation
     
     public static func analyze(callback: @escaping (String?, String?) -> Void) {
