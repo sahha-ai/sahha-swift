@@ -51,7 +51,7 @@ class APIRequest {
         }
 
         if endpoint.isAuthRequired {
-            if let token = Credentials.token {
+            if let token = SahhaCredentials.token {
                 let authValue = "Bearer \(token)"
                 urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
@@ -117,7 +117,7 @@ class APIRequest {
             eventParams[SahhaAnalyticsParam.error_code] = urlResponse.statusCode
             
             // Token has expired
-            if urlResponse.statusCode == 401, let customerId = Credentials.customerId, customerId.isEmpty == false, let profileId = Credentials.profileId, profileId.isEmpty == false {
+            if urlResponse.statusCode == 401 {
                 print("Sahha | Authorization token is expired")
                 
                 DispatchQueue.main.async {
@@ -126,8 +126,12 @@ class APIRequest {
                     SahhaAnalytics.logEvent(.api_error, params: eventParams)
                 }
                 
-                // get new token
+                if let refreshToken = SahhaCredentials.refreshToken {
+                    SahhaCredentials.setCredentials(token: refreshToken, refreshToken: refreshToken)
+                    // Get a new token
+                }
                 return
+                
             } else if urlResponse.statusCode >= 300 {
                     DispatchQueue.main.async {
                         eventParams[SahhaAnalyticsParam.error_type] = ApiError.responseError.id

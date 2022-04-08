@@ -47,7 +47,7 @@ public class Sahha {
         
         SahhaAnalytics.configure()
         
-        Credentials.getCredentials()
+        SahhaCredentials.getCredentials()
                 
         health.configure(sensors: settings.sensors)
         
@@ -75,35 +75,14 @@ public class Sahha {
     
     // MARK: - Authentication
     
-    public static func authenticate(customerId: String, profileId: String, callback: @escaping (String?, String?) -> Void) {
-        APIController.postAuthentication(customerId: customerId, profileId: profileId) { result in
-            switch result {
-            case .success(let response):
-                Credentials.setCredentials(customer: customerId, profile: profileId, token: response.token)
-                callback(nil, "Sahha authorization success")
-            case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, nil)
-            }
-        }
+    public static func authenticate(token: String, refreshToken: String) {
+        SahhaCredentials.setCredentials(token: token, refreshToken: refreshToken)
     }
     
-    // MARK: Profile
-    
-    /*
-    public static func getProfile(profileId: String, onComplete: @escaping (Result<ProfileResponse, ApiError>) -> Void) {
-        APIController.getProfile(profileId: profileId) { result in
-            
-        }
+    public static func deauthenticate() {
+        SahhaCredentials.deleteCredentials()
     }
-    
-    public static func setProfile() {
-        APIController.postDemographic(body: <#T##DemographicRequest#>) { <#Result<EmptyResponse, ApiError>#> in
-            <#code#>
-        }
-    }
-    */
-    
+  
     // MARK: - Demographic
     
     public static func getDemographic(callback: @escaping (String?, SahhaDemographic?) -> Void) {
