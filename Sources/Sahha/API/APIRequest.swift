@@ -38,14 +38,6 @@ class APIRequest {
             }
         }
         
-        // Add tracking data
-        if endpoint.isAppInfoRequired {
-            urlRequest.addValue(SahhaConfig.sdkVersion, forHTTPHeaderField: SahhaAppInfo.sdkVersion.rawValue)
-            urlRequest.addValue(SahhaConfig.deviceModel, forHTTPHeaderField: SahhaAppInfo.deviceModel.rawValue)
-            urlRequest.addValue(SahhaConfig.devicePlatform, forHTTPHeaderField: SahhaAppInfo.devicePlatform.rawValue)
-            urlRequest.addValue(SahhaConfig.devicePlatformVersion, forHTTPHeaderField: SahhaAppInfo.devicePlatformVersion.rawValue)
-        }
-        
         // Don't fetch the same task at the same time
         if ApiEndpoint.activeTasks.contains(endpoint.path) {
             print("Sahha | Aborting duplicated", method.rawValue, url.absoluteString)

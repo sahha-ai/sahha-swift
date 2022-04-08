@@ -13,13 +13,6 @@ public enum SahhaSensor: String, CaseIterable {
     case device
 }
 
-enum SahhaAppInfo: String {
-    case sdkVersion
-    case deviceModel
-    case devicePlatform
-    case devicePlatformVersion
-}
-
 public enum SahhaActivity: String {
     case motion
     case health
@@ -45,6 +38,15 @@ class SahhaConfig {
     init() {
     }
     
+    static var appAnalyticsKey: String {
+        switch Sahha.settings.environment {
+        case .production:
+            return "f71d21ca-e775-4e37-8f77-27f65e548d17"
+        case .development:
+            return "7af31263-6536-4010-8bd8-3fa49c6089f6"
+        }
+    }
+    
     static var apiBasePath: String {
         switch Sahha.settings.environment {
         case .production:
@@ -53,8 +55,14 @@ class SahhaConfig {
             return "https://sandbox-api.sahha.ai/api/"
         }
     }
+    
+    static let sdkVersion: String = "0.0.0"
+    
+    static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
-    static let sdkVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    static let appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    
+    static let deviceId: String = UIDevice.current.identifierForVendor?.uuidString ?? "" // keep privacy
     
     static let deviceType: String = UIDevice.current.model
 
@@ -69,7 +77,7 @@ class SahhaConfig {
         return modelCode
     }
     
-    static let devicePlatform = UIDevice.current.systemName
+    static let system = UIDevice.current.systemName
     
-    static let devicePlatformVersion = UIDevice.current.systemVersion
+    static let systemVersion = UIDevice.current.systemVersion
 }

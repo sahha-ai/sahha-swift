@@ -44,8 +44,10 @@ public class Sahha {
     ) {
         Self.settings = settings
         
-        Credentials.getCredentials()
+        AnalyticsHelper.configure()
         
+        Credentials.getCredentials()
+                
         health.configure(sensors: settings.sensors)
         
         motion.configure(sensors: settings.sensors)

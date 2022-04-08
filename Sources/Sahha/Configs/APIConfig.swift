@@ -54,15 +54,6 @@ class ApiEndpoint {
         }
     }
     
-    var isAppInfoRequired: Bool {
-        switch endpointPath {
-        case .authentication:
-            return true
-        default:
-            return false
-        }
-    }
-    
     init(_ endpointPath: EndpointPath, _ queryParams: String...) {
         self.endpointPath = endpointPath
         var urlPath = endpointPath.rawValue
