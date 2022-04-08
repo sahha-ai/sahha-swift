@@ -11,7 +11,7 @@ enum ApiError: String, Error {
     case decodingError  = "Decoding error"
     case missingData    = "Missing data"
     
-    var message: String {
+    var id: String {
         return self.rawValue
     }
 }

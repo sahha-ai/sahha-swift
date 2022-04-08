@@ -5,7 +5,7 @@ import AppCenter
 import AppCenterAnalytics
 import AppCenterCrashes
 
-enum AnalyticsEventIdentifier: String, Identifiable, Equatable {
+enum SahhaAnalyticsEvent: String, Identifiable, Equatable {
     case api_error
     
     var id: String {
@@ -13,7 +13,8 @@ enum AnalyticsEventIdentifier: String, Identifiable, Equatable {
     }
 }
 
-enum AnalyticsParamIdentifier: String, Identifiable, Equatable {
+enum SahhaAnalyticsParam: String, Identifiable, Equatable {
+    case sdk_id
     case sdk_version
     case app_id
     case app_version
@@ -24,6 +25,7 @@ enum AnalyticsParamIdentifier: String, Identifiable, Equatable {
     case system_version
     case error_code
     case error_type
+    case error_message
     case api_url
     case api_method
     case api_body
@@ -34,7 +36,7 @@ enum AnalyticsParamIdentifier: String, Identifiable, Equatable {
     }
 }
 
-class AnalyticsHelper {
+class SahhaAnalytics {
     
     class func configure() {
         AppCenter.start(withAppSecret: SahhaConfig.appAnalyticsKey, services:[
@@ -44,19 +46,20 @@ class AnalyticsHelper {
         print("Sahha | Analytics configured")
     }
     
-    class func logEvent(_ identifier: AnalyticsEventIdentifier, params: [AnalyticsParamIdentifier : Any]? = nil) {
+    class func logEvent(_ identifier: SahhaAnalyticsEvent, params: [SahhaAnalyticsParam : Any]? = nil) {
         
         let properties = EventProperties()
         
-        var eventParams: [AnalyticsParamIdentifier: Any] = [
-            AnalyticsParamIdentifier.sdk_version : SahhaConfig.sdkVersion,
-            AnalyticsParamIdentifier.app_id : SahhaConfig.appId,
-            AnalyticsParamIdentifier.app_version : SahhaConfig.appVersion,
-            AnalyticsParamIdentifier.device_id : SahhaConfig.deviceId,
-            AnalyticsParamIdentifier.device_type : SahhaConfig.deviceType,
-            AnalyticsParamIdentifier.device_model : SahhaConfig.deviceModel,
-            AnalyticsParamIdentifier.system : SahhaConfig.system,
-            AnalyticsParamIdentifier.system_version : SahhaConfig.systemVersion
+        var eventParams: [SahhaAnalyticsParam: Any] = [
+            SahhaAnalyticsParam.sdk_id : Sahha.settings.framework,
+            SahhaAnalyticsParam.sdk_version : SahhaConfig.sdkVersion,
+            SahhaAnalyticsParam.app_id : SahhaConfig.appId,
+            SahhaAnalyticsParam.app_version : SahhaConfig.appVersion,
+            SahhaAnalyticsParam.device_id : SahhaConfig.deviceId,
+            SahhaAnalyticsParam.device_type : SahhaConfig.deviceType,
+            SahhaAnalyticsParam.device_model : SahhaConfig.deviceModel,
+            SahhaAnalyticsParam.system : SahhaConfig.system,
+            SahhaAnalyticsParam.system_version : SahhaConfig.systemVersion
         ]
         
         if let customParams = params {

@@ -11,6 +11,11 @@ class APIRequest {
                 body = try JSONEncoder().encode(encodable)
             } catch {
                 DispatchQueue.main.async {
+                    SahhaAnalytics.logEvent(.api_error, params: [SahhaAnalyticsParam.error_type : ApiError.encodingError.id,
+                                                                 SahhaAnalyticsParam.api_url : endpoint.relativePath,
+                                                                 SahhaAnalyticsParam.api_method : method.rawValue,
+                                                                 SahhaAnalyticsParam.api_auth : endpoint.isAuthRequired])
+
                     onComplete(.failure(.encodingError))
                 }
                 return
@@ -26,13 +31,35 @@ class APIRequest {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = method.rawValue
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        var eventParams: [SahhaAnalyticsParam: Any] = [
+            SahhaAnalyticsParam.api_url : endpoint.relativePath,
+            SahhaAnalyticsParam.api_method : method.rawValue,
+            SahhaAnalyticsParam.api_auth : endpoint.isAuthRequired
+        ]
+        
+        do {
+            if let jsonData = body, let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] {
+                var jsonBody = jsonObject
+                if let _ = jsonObject["token"] as? String {
+                    jsonBody["token"] = "******"
+                }
+                eventParams[SahhaAnalyticsParam.api_body] = jsonBody.description
+            }
+        } catch {
+            print(error.localizedDescription)
+        }
 
         if endpoint.isAuthRequired {
             if let token = Credentials.token {
-                urlRequest.addValue(token, forHTTPHeaderField: "Authorization")
+                let authValue = "Bearer \(token)"
+                urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
                 // cancel request
                 print("Sahha | Aborting unauthorized", method.rawValue, url.absoluteString)
+                eventParams[SahhaAnalyticsParam.error_type] = ApiError.authError.id
+                eventParams[SahhaAnalyticsParam.error_message] = "Missing token"
+                SahhaAnalytics.logEvent(.api_error, params: eventParams)
                 onComplete(.failure(.authError))
                 return
             }
@@ -48,8 +75,15 @@ class APIRequest {
 
         print("Sahha | Trying", method.rawValue, url.absoluteString)
         
-        if let body = body {
-            urlRequest.httpBody = body
+        if method == .post || method == .put || method == .patch {
+            if let body = body {
+                urlRequest.httpBody = body
+            } else {
+                eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
+                eventParams[SahhaAnalyticsParam.error_message] = "Missing request data"
+                SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                return
+            }
         }
         
         URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
@@ -61,6 +95,9 @@ class APIRequest {
             if let error = error {
                 print(error.localizedDescription)
                 DispatchQueue.main.async {
+                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.serverError.id
+                    eventParams[SahhaAnalyticsParam.error_message] = error.localizedDescription
+                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
                     onComplete(.failure(.serverError))
                 }
                 return
@@ -68,20 +105,34 @@ class APIRequest {
             
             guard let urlResponse = response as? HTTPURLResponse else {
                     DispatchQueue.main.async {
+                        eventParams[SahhaAnalyticsParam.error_type] = ApiError.serverError.id
+                        eventParams[SahhaAnalyticsParam.error_message] = "Missing response"
+                        SahhaAnalytics.logEvent(.api_error, params: eventParams)
                         onComplete(.failure(.responseError))
                 }
                 return
             }
             print("\(urlResponse.statusCode) : " + url.absoluteString)
             
+            eventParams[SahhaAnalyticsParam.error_code] = urlResponse.statusCode
+            
             // Token has expired
             if urlResponse.statusCode == 401, let customerId = Credentials.customerId, customerId.isEmpty == false, let profileId = Credentials.profileId, profileId.isEmpty == false {
                 print("Sahha | Authorization token is expired")
+                
+                DispatchQueue.main.async {
+                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.tokenError.id
+                    eventParams[SahhaAnalyticsParam.error_message] = "Token expired"
+                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                }
                 
                 // get new token
                 return
             } else if urlResponse.statusCode >= 300 {
                     DispatchQueue.main.async {
+                        eventParams[SahhaAnalyticsParam.error_type] = ApiError.responseError.id
+                        eventParams[SahhaAnalyticsParam.error_message] = HTTPURLResponse.localizedString(forStatusCode: urlResponse.statusCode)
+                        SahhaAnalytics.logEvent(.api_error, params: eventParams)
                         onComplete(.failure(.responseError))
                     }
                 return
@@ -94,6 +145,9 @@ class APIRequest {
             }
             guard let data = data else {
                 DispatchQueue.main.async {
+                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
+                    eventParams[SahhaAnalyticsParam.error_message] = "Missing response data"
+                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
                     onComplete(.failure(.missingData))
                 }
                 return
@@ -102,7 +156,11 @@ class APIRequest {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             guard let decoded = try? decoder.decode(decodable.self, from: data) else {
-                onComplete(.failure(.decodingError))
+                DispatchQueue.main.async {
+                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.decodingError.id
+                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                    onComplete(.failure(.decodingError))
+                }
                 return
             }
             
