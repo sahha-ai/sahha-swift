@@ -7,6 +7,15 @@ public enum SahhaEnvironment: String {
     case production
 }
 
+public enum SahhaFramework: String {
+    case android_kotlin
+    case ios_swift
+    case react_native
+    case flutter
+    case capacitor
+    case cordova
+}
+
 public enum SahhaSensor: String, CaseIterable {
     case sleep
     case pedometer

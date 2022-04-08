@@ -5,6 +5,7 @@ import UIKit
 
 public struct SahhaSettings {
     public let environment: SahhaEnvironment
+    public var framework: SahhaFramework = .ios_swift
     public let sensors: Set<SahhaSensor>
     public let postActivityManually: Bool
     
@@ -44,7 +45,7 @@ public class Sahha {
     ) {
         Self.settings = settings
         
-        AnalyticsHelper.configure()
+        SahhaAnalytics.configure()
         
         Credentials.getCredentials()
                 
