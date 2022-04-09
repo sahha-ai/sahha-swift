@@ -75,8 +75,8 @@ public class Sahha {
     
     // MARK: - Authentication
     
-    public static func authenticate(token: String, refreshToken: String) {
-        SahhaCredentials.setCredentials(token: token, refreshToken: refreshToken)
+    @discardableResult public static func authenticate(token: String, refreshToken: String) -> Bool {
+        return SahhaCredentials.setCredentials(token: token, refreshToken: refreshToken)
     }
     
     public static func deauthenticate() {

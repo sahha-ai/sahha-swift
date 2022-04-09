@@ -52,9 +52,13 @@ class SahhaCredentials {
         return nil
     }
     
-    static func setCredentials(token: String, refreshToken: String) {
+    @discardableResult static func setCredentials(token: String, refreshToken: String) -> Bool {
         setToken(token)
         setRefreshToken(refreshToken)
+        guard let _ = self.token, let _ = self.refreshToken else {
+            return false
+        }
+        return true
     }
     
     private static func setToken(_ value: String) {
@@ -66,6 +70,11 @@ class SahhaCredentials {
     }
 
     private static func set(account: String, server: String, value: String) -> String? {
+        if value.isEmpty {
+            print("Sahha | Credentials set empty value")
+            return nil
+        }
+        
         guard let data = value.data(using: .utf8) else {
             print("Sahha | Credentials set data error")
             return nil
