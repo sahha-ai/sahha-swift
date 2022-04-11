@@ -6,3 +6,7 @@ struct AuthenticationRequest: Encodable {
     var customerId: String
     var profileId: String
 }
+
+struct AuthenticationResponse: Decodable {
+    var token: String
+}

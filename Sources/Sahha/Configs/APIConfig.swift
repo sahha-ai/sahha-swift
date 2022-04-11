@@ -11,7 +11,7 @@ enum ApiError: String, Error {
     case decodingError  = "Decoding error"
     case missingData    = "Missing data"
     
-    var message: String {
+    var id: String {
         return self.rawValue
     }
 }
@@ -34,8 +34,9 @@ class ApiEndpoint {
         case deviceActivity = "deviceActivity"
         case lock = "deviceActivity/lock"
         case lockRange = "deviceActivity/lockRange"
-        case profile = "profile"
         case demographic = "profile/demographic"
+        case analyze = "profile/analyze"
+        case sleepRange = "sleep/logRange"
     }
     
     let endpointPath: EndpointPath
@@ -49,15 +50,6 @@ class ApiEndpoint {
             return false
         default:
             return true
-        }
-    }
-    
-    var isAppInfoRequired: Bool {
-        switch endpointPath {
-        case .authentication:
-            return true
-        default:
-            return false
         }
     }
     
