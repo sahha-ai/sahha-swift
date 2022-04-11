@@ -4,6 +4,7 @@ import SwiftUI
 import HealthKit
 
 public struct HealthActivitySample: Encodable, Hashable {
+    
     public var isAsleep: Bool
     public var startDate: Date
     public var endDate: Date
@@ -20,6 +21,9 @@ public struct HealthActivitySample: Encodable, Hashable {
 
 public class HealthActivity {
     
+    private let sleepKey = "sleepActivityDate"
+    private let stepKey = "stepActivityDate"
+    
     public private(set) var activityStatus: SahhaActivityStatus = .pending
     public private(set) var activityHistory: [HealthActivitySample] = []
     
@@ -31,6 +35,8 @@ public class HealthActivity {
     
     init() {
         print("Sahha | Health init")
+        //UserDefaults.standard.removeObject(forKey: sleepKey)
+        //UserDefaults.standard.removeObject(forKey: stepKey)
     }
     
     func configure(sensors: Set<SahhaSensor>) {
@@ -125,6 +131,13 @@ public class HealthActivity {
             callback?("Sahha | Health activity is not enabled", false)
             return
         }
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let lastDate = UserDefaults.standard.date(forKey: sleepKey) ?? yesterday
+        let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
+        guard numberOfMinutes > 360 else {
+            // Minimum of 6 hours between history checks
+            return
+        }
         checkSleepHistory() { [weak self] identifier, anchor, data, history in
             self?.activityHistory = history
             if data.isEmpty == false {
@@ -215,12 +228,15 @@ public class HealthActivity {
             let oldData = Array(data[newData.count..<data.count])
             postSleepRange(data: oldData, identifier: identifier, anchor: anchor, callback: callback)
         } else {
-            APIController.postSleep(body: data) { result in
+            APIController.postSleep(body: data) { [weak self] result in
                 switch result {
                 case .success(_):
                     // Save anchor
                     if let data: Data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: false) {
                         UserDefaults.standard.set(data, forKey: identifier)
+                        if let key = self?.sleepKey {
+                            UserDefaults.standard.set(date: Date(), forKey: key)
+                        }
                     }
                     callback?(nil, true)
                 case .failure(let error):

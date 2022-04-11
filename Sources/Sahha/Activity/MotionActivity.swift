@@ -3,9 +3,10 @@
 import SwiftUI
 import CoreMotion
 
-fileprivate let pedometerKey = "pedometerActivityDate"
-
 public class MotionActivity {
+    
+    private let movementKey = "movementActivityDate"
+    private let pedometerKey = "pedometerActivityDate"
     
     public private(set) var activityStatus: SahhaActivityStatus = .pending
     public private(set) var activityHistory: [CMPedometerData] = []
@@ -17,6 +18,8 @@ public class MotionActivity {
     
     init() {
         print("Sahha | Motion init")
+        //UserDefaults.standard.removeObject(forKey: movementKey)
+        //UserDefaults.standard.removeObject(forKey: pedometerKey)
     }
     
     func configure(sensors: Set<SahhaSensor>) {
@@ -109,6 +112,11 @@ public class MotionActivity {
         if activityStatus == .enabled {
             let lastWeek = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let lastDate = UserDefaults.standard.date(forKey: pedometerKey) ?? lastWeek
+            let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
+            guard numberOfMinutes > 360 else {
+                // Minimum of 6 hours between history checks
+                return
+            }
             let numberOfDays = Calendar.current.dateComponents([.day], from: lastDate, to: lastWeek).day ?? 0
             var date = numberOfDays > 0 ? lastWeek : lastDate
             var datas: [CMPedometerData] = []
@@ -174,7 +182,9 @@ public class MotionActivity {
             let oldData = Array(data[newData.count..<data.count])
             postPemoterRange(data: oldData, callback: callback)
         } else {
-            // fill in
+            // TODO: post to API
+            // TODO: Save date key
+            //UserDefaults.standard.set(date: Date(), forKey: pedometerKey)
             callback?(nil, true)
         }
     }
