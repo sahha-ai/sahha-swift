@@ -3,29 +3,13 @@
 import SwiftUI
 import HealthKit
 
-public struct HealthActivitySample: Encodable, Hashable {
-    
-    public var isAsleep: Bool
-    public var startDate: Date
-    public var endDate: Date
-    public var count: Int
-    
-    init(isAsleep: Bool, startDate: Date, endDate: Date) {
-        self.isAsleep = isAsleep
-        self.startDate = startDate
-        self.endDate = endDate
-        let difference = Calendar.current.dateComponents([.minute], from: startDate, to: endDate)
-        self.count = difference.minute ?? 0
-    }
-}
-
 public class HealthActivity {
     
     private let sleepKey = "sleepActivityDate"
     private let stepKey = "stepActivityDate"
     
     public private(set) var activityStatus: SahhaActivityStatus = .pending
-    public private(set) var activityHistory: [HealthActivitySample] = []
+    public private(set) var activityHistory: [HKCategorySample] = []
     
     private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
     private var enabledSensors: Set<SahhaSensor> = []
@@ -165,22 +149,28 @@ public class HealthActivity {
         }
     }
     
-    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest], [HealthActivitySample])->Void) {
+    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest], [HKCategorySample])->Void) {
         if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKCategorySample] {
                     var requests: [SleepRequest] = []
-                    var history: [HealthActivitySample] = []
                     for sample in samples {
-                        if sample.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
-                            let request = SleepRequest(startDate: sample.startDate, endDate: sample.endDate)
+                        var request: SleepRequest?
+                        switch sample.value {
+                        case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                            request = SleepRequest(stage: .inBed, startDate: sample.startDate, endDate: sample.endDate)
+                        case HKCategoryValueSleepAnalysis.asleep.rawValue:
+                            request = SleepRequest(stage: .asleep, startDate: sample.startDate, endDate: sample.endDate)
+                        case HKCategoryValueSleepAnalysis.awake.rawValue:
+                            request = SleepRequest(stage: .awake, startDate: sample.startDate, endDate: sample.endDate)
+                        default:
+                            break
+                        }
+                        if let request = request {
                             requests.append(request)
-                            history.append(HealthActivitySample(isAsleep: true, startDate: sample.startDate, endDate: sample.endDate))
-                        } else {
-                            history.append(HealthActivitySample(isAsleep: false, startDate: sample.startDate, endDate: sample.endDate))
                         }
                     }
-                    callback(sampleType.identifier, anchor, requests, history)
+                    callback(sampleType.identifier, anchor, requests, samples)
                 }
             }
         }
