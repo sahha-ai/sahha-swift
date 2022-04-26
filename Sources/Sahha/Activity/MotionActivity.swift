@@ -16,13 +16,13 @@ public class MotionActivity {
     private let pedometer: CMPedometer = CMPedometer()
     private let isAvailable: Bool = CMPedometer.isStepCountingAvailable()
     
-    init() {
+    internal init() {
         print("Sahha | Motion init")
         //UserDefaults.standard.removeObject(forKey: movementKey)
         //UserDefaults.standard.removeObject(forKey: pedometerKey)
     }
     
-    func configure(sensors: Set<SahhaSensor>) {
+    internal func configure(sensors: Set<SahhaSensor>) {
         enabledSensors = activitySensors.intersection(sensors)
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
@@ -34,8 +34,8 @@ public class MotionActivity {
     
     @objc private func onAppOpen() {
         checkAuthorization { [weak self] _ in
-            if Sahha.settings.postActivityManually == false {
-                self?.postActivity()
+            if Sahha.settings.postSensorDataManually == false {
+                self?.postSensorData(.pedometer)
             }
         }
     }
@@ -84,27 +84,35 @@ public class MotionActivity {
         }
     }
     
-    public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
-        guard enabledSensors.contains(.pedometer) else {
-            callback?("Sahha | Pedometer sensor is missing from Sahha.configure()", false)
+    internal func postSensorData(_ sensor: SahhaSensor, callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
+        
+        guard enabledSensors.contains(sensor) else {
+            callback?("Sahha | \(sensor.rawValue) sensor is missing from Sahha.configure()", false)
             return
         }
+        
         guard activityStatus == .enabled else {
             callback?("Sahha | Motion activity is not enabled", false)
             return
         }
-        getPedometerHistoryData { [weak self] data in
-            self?.activityHistory = data
-            var requests: [PedometerRequest] = []
-            for item in data {
-                let request = PedometerRequest(item: item)
-                requests.append(request)
+        
+        switch sensor {
+        case .pedometer:
+            getPedometerHistoryData { [weak self] data in
+                self?.activityHistory = data
+                var requests: [PedometerRequest] = []
+                for item in data {
+                    let request = PedometerRequest(item: item)
+                    requests.append(request)
+                }
+                if requests.isEmpty == false {
+                    self?.postPemoterRange(data: requests, callback: callback)
+                } else {
+                    callback?("Sahha | No new Motion activity since last post", false)
+                }
             }
-            if requests.isEmpty == false {
-                self?.postPemoterRange(data: requests, callback: callback)
-            } else {
-                callback?("Sahha | No new Motion activity since last post", false)
-            }
+        default:
+            callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
         }
     }
     
@@ -115,6 +123,7 @@ public class MotionActivity {
             let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
             guard numberOfMinutes > 360 else {
                 // Minimum of 6 hours between history checks
+                callback([])
                 return
             }
             let numberOfDays = Calendar.current.dateComponents([.day], from: lastDate, to: lastWeek).day ?? 0
@@ -183,8 +192,8 @@ public class MotionActivity {
             postPemoterRange(data: oldData, callback: callback)
         } else {
             // TODO: post to API
-            // TODO: Save date key
-            //UserDefaults.standard.set(date: Date(), forKey: pedometerKey)
+            // Save date key
+            UserDefaults.standard.set(date: Date(), forKey: pedometerKey)
             callback?(nil, true)
         }
     }

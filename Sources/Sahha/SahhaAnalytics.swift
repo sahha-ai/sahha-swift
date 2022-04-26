@@ -55,7 +55,6 @@ class SahhaAnalytics {
             SahhaAnalyticsParam.sdk_version : SahhaConfig.sdkVersion,
             SahhaAnalyticsParam.app_id : SahhaConfig.appId,
             SahhaAnalyticsParam.app_version : SahhaConfig.appVersion,
-            SahhaAnalyticsParam.device_id : SahhaConfig.deviceId,
             SahhaAnalyticsParam.device_type : SahhaConfig.deviceType,
             SahhaAnalyticsParam.device_model : SahhaConfig.deviceModel,
             SahhaAnalyticsParam.system : SahhaConfig.system,

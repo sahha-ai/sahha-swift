@@ -24,7 +24,7 @@ class APIRequest {
         }
     }
     
-    static func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, canAlert: Bool = true, onComplete: @escaping (Result<D, ApiError>) -> Void) {
+    static func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, onComplete: @escaping (Result<D, ApiError>) -> Void) {
         
         guard let url = URL(string: endpoint.path) else {return}
         
@@ -44,6 +44,12 @@ class APIRequest {
                 if let _ = jsonObject["token"] as? String {
                     jsonBody["token"] = "******"
                 }
+                if let _ = jsonObject["profileToken"] as? String {
+                    jsonBody["profileToken"] = "******"
+                }
+                if let _ = jsonObject["refreshToken"] as? String {
+                    jsonBody["refreshToken"] = "******"
+                }
                 eventParams[SahhaAnalyticsParam.api_body] = jsonBody.description
             }
         } catch {
@@ -51,8 +57,8 @@ class APIRequest {
         }
 
         if endpoint.isAuthRequired {
-            if let token = SahhaCredentials.token {
-                let authValue = "Bearer \(token)"
+            if let profileToken = SahhaCredentials.profileToken {
+                let authValue = "Profile \(profileToken)"
                 urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
                 // cancel request
@@ -75,17 +81,21 @@ class APIRequest {
 
         print("Sahha | Trying", method.rawValue, url.absoluteString)
         
-        if method == .post || method == .put || method == .patch {
+        switch method {
+        case .post, .put, .patch:
             if let body = body {
                 urlRequest.httpBody = body
             } else {
                 eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
                 eventParams[SahhaAnalyticsParam.error_message] = "Missing request data"
                 SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                print("Sahha | Aborting missing request body", method.rawValue, url.absoluteString)
                 return
             }
+        default:
+            break
         }
-        
+
         URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
             
             ApiEndpoint.activeTasks.removeAll {
@@ -126,9 +136,23 @@ class APIRequest {
                     SahhaAnalytics.logEvent(.api_error, params: eventParams)
                 }
                 
-                if let refreshToken = SahhaCredentials.refreshToken {
-                    SahhaCredentials.setCredentials(token: refreshToken, refreshToken: refreshToken)
-                    // Get a new token
+                // Get a new token
+                if let profileToken = SahhaCredentials.profileToken, let refreshToken = SahhaCredentials.refreshToken {
+                    APIController.postRefreshToken(body: RefreshTokenRequest(profileToken: profileToken, refreshToken: refreshToken)) { result in
+                        switch result {
+                        case .success(let response):
+                            DispatchQueue.main.async {
+                                
+                                // Save new token
+                                SahhaCredentials.setCredentials(profileToken: response.profileToken ?? "", refreshToken: response.refreshToken ?? "")
+
+                                // Try failed endpoint again
+                                APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
+                            }
+                        case .failure(let error):
+                            print(error.localizedDescription)
+                        }
+                    }
                 }
                 return
                 

@@ -5,12 +5,12 @@ import Security
 
 class SahhaCredentials {
 
-    static var token: String?
+    static var profileToken: String?
     static var refreshToken: String?
     
     static func getCredentials() {
-        if let token = getToken(), let refreshToken = getRefreshToken() {
-            self.token = token
+        if let profileToken = getProfileToken(), let refreshToken = getRefreshToken() {
+            self.profileToken = profileToken
             self.refreshToken = refreshToken
             print("Sahha | Credentials OK")
         } else {
@@ -18,7 +18,7 @@ class SahhaCredentials {
         }
     }
     
-    private static func getToken() -> String? {
+    private static func getProfileToken() -> String? {
         return get(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath)
     }
     
@@ -52,17 +52,17 @@ class SahhaCredentials {
         return nil
     }
     
-    @discardableResult static func setCredentials(token: String, refreshToken: String) -> Bool {
-        setToken(token)
+    @discardableResult static func setCredentials(profileToken: String, refreshToken: String) -> Bool {
+        setProfileToken(profileToken)
         setRefreshToken(refreshToken)
-        guard let _ = self.token, let _ = self.refreshToken else {
+        guard let _ = self.profileToken, let _ = self.refreshToken else {
             return false
         }
         return true
     }
     
-    private static func setToken(_ value: String) {
-        self.token = set(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: value)
+    private static func setProfileToken(_ value: String) {
+        self.profileToken = set(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: value)
     }
     
     private static func setRefreshToken(_ value: String) {
@@ -116,16 +116,16 @@ class SahhaCredentials {
     }
     
     static func deleteCredentials() {
-        deleteToken()
+        deleteProfileToken()
         deleteRefreshToken()
     }
     
-    private static func deleteToken() {
-        self.token = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.token)
+    private static func deleteProfileToken() {
+        self.profileToken = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.profileToken)
     }
     
     private static func deleteRefreshToken() {
-        self.token = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: self.token)
+        self.refreshToken = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: self.refreshToken)
     }
     
     private static func delete(account: String, server: String, value: String?) -> String? {

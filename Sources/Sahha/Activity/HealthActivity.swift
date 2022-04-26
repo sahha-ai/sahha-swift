@@ -3,29 +3,13 @@
 import SwiftUI
 import HealthKit
 
-public struct HealthActivitySample: Encodable, Hashable {
-    
-    public var isAsleep: Bool
-    public var startDate: Date
-    public var endDate: Date
-    public var count: Int
-    
-    init(isAsleep: Bool, startDate: Date, endDate: Date) {
-        self.isAsleep = isAsleep
-        self.startDate = startDate
-        self.endDate = endDate
-        let difference = Calendar.current.dateComponents([.minute], from: startDate, to: endDate)
-        self.count = difference.minute ?? 0
-    }
-}
-
 public class HealthActivity {
     
     private let sleepKey = "sleepActivityDate"
     private let stepKey = "stepActivityDate"
     
     public private(set) var activityStatus: SahhaActivityStatus = .pending
-    public private(set) var activityHistory: [HealthActivitySample] = []
+    public private(set) var activityHistory: [HKCategorySample] = []
     
     private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
     private var enabledSensors: Set<SahhaSensor> = []
@@ -33,13 +17,13 @@ public class HealthActivity {
     private let store: HKHealthStore = HKHealthStore()
     private var sampleTypes: Set<HKObjectType> = []
     
-    init() {
+    internal init() {
         print("Sahha | Health init")
         //UserDefaults.standard.removeObject(forKey: sleepKey)
         //UserDefaults.standard.removeObject(forKey: stepKey)
     }
     
-    func configure(sensors: Set<SahhaSensor>) {
+    internal func configure(sensors: Set<SahhaSensor>) {
         enabledSensors = activitySensors.intersection(sensors)
         sampleTypes = []
         if enabledSensors.contains(.sleep) {
@@ -57,8 +41,8 @@ public class HealthActivity {
     
     @objc private func onAppOpen() {
         checkAuthorization { [weak self] _ in
-            if Sahha.settings.postActivityManually == false {
-                self?.postActivity()
+            if Sahha.settings.postSensorDataManually == false {
+                self?.postSensorData(.sleep)
             }
         }
     }
@@ -122,29 +106,38 @@ public class HealthActivity {
         }
     }
     
-    public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
-        guard enabledSensors.contains(.sleep) else {
-            callback?("Sahha | Sleep sensor is missing from Sahha.configure()", false)
+    internal func postSensorData(_ sensor: SahhaSensor, callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
+        
+        guard enabledSensors.contains(sensor) else {
+            callback?("Sahha | \(sensor.rawValue) sensor is missing from Sahha.configure()", false)
             return
         }
+        
         guard activityStatus == .enabled else {
             callback?("Sahha | Health activity is not enabled", false)
             return
         }
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let lastDate = UserDefaults.standard.date(forKey: sleepKey) ?? yesterday
-        let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
-        guard numberOfMinutes > 360 else {
-            // Minimum of 6 hours between history checks
-            return
-        }
-        checkSleepHistory() { [weak self] identifier, anchor, data, history in
-            self?.activityHistory = history
-            if data.isEmpty == false {
-                self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
-            } else {
-                callback?("Sahha | No new Health activity since last post", false)
+        
+        switch sensor {
+        case .sleep:
+            let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+            let lastDate = UserDefaults.standard.date(forKey: sleepKey) ?? yesterday
+            let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
+            guard numberOfMinutes > 360 else {
+                // Minimum of 6 hours between history checks
+                callback?("Sahha | Health activity data needs more time to collect", false)
+                return
             }
+            checkSleepHistory() { [weak self] identifier, anchor, data, history in
+                self?.activityHistory = history
+                if data.isEmpty == false {
+                    self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
+                } else {
+                    callback?("Sahha | No new Health activity since last post", false)
+                }
+            }
+        default:
+            callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
         }
     }
     
@@ -165,22 +158,28 @@ public class HealthActivity {
         }
     }
     
-    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest], [HealthActivitySample])->Void) {
+    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest], [HKCategorySample])->Void) {
         if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
             checkHistory(sampleType: sampleType) { anchor, data in
                 if let samples = data as? [HKCategorySample] {
                     var requests: [SleepRequest] = []
-                    var history: [HealthActivitySample] = []
                     for sample in samples {
-                        if sample.value == HKCategoryValueSleepAnalysis.asleep.rawValue {
-                            let request = SleepRequest(startDate: sample.startDate, endDate: sample.endDate)
+                        var request: SleepRequest?
+                        switch sample.value {
+                        case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                            request = SleepRequest(stage: .inBed, startDate: sample.startDate, endDate: sample.endDate)
+                        case HKCategoryValueSleepAnalysis.asleep.rawValue:
+                            request = SleepRequest(stage: .asleep, startDate: sample.startDate, endDate: sample.endDate)
+                        case HKCategoryValueSleepAnalysis.awake.rawValue:
+                            request = SleepRequest(stage: .awake, startDate: sample.startDate, endDate: sample.endDate)
+                        default:
+                            break
+                        }
+                        if let request = request {
                             requests.append(request)
-                            history.append(HealthActivitySample(isAsleep: true, startDate: sample.startDate, endDate: sample.endDate))
-                        } else {
-                            history.append(HealthActivitySample(isAsleep: false, startDate: sample.startDate, endDate: sample.endDate))
                         }
                     }
-                    callback(sampleType.identifier, anchor, requests, history)
+                    callback(sampleType.identifier, anchor, requests, samples)
                 }
             }
         }

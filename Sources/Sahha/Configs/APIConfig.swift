@@ -30,7 +30,7 @@ struct EmptyResponse: Decodable {
 
 class ApiEndpoint {
     enum EndpointPath: String {
-        case authentication = "authentication"
+        case refreshToken = "oauth/profile/refreshToken"
         case deviceActivity = "deviceActivity"
         case lock = "deviceActivity/lock"
         case lockRange = "deviceActivity/lockRange"
@@ -46,7 +46,7 @@ class ApiEndpoint {
     
     var isAuthRequired: Bool {
         switch endpointPath {
-        case .authentication:
+        case .refreshToken:
             return false
         default:
             return true

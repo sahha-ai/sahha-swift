@@ -4,12 +4,12 @@ import SwiftUI
 import UIKit
 
 public struct SahhaSettings {
-    public let environment: SahhaEnvironment
-    public var framework: SahhaFramework = .ios_swift
-    public let sensors: Set<SahhaSensor>
-    public let postActivityManually: Bool
+    public let environment: SahhaEnvironment /// development or production
+    public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
+    public let sensors: Set<SahhaSensor> /// list of 
+    public let postSensorDataManually: Bool
     
-    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postActivityManually: Bool? = nil) {
+    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postSensorDataManually: Bool? = nil) {
         self.environment = environment
         if let sensors = sensors {
             // If list is specified, add only those sensors
@@ -22,7 +22,7 @@ public struct SahhaSettings {
             }
             self.sensors = sensors
         }
-        self.postActivityManually = postActivityManually ?? false
+        self.postSensorDataManually = postSensorDataManually ?? false
     }
 }
 
@@ -31,16 +31,37 @@ public class Sahha {
     public static var health = HealthActivity()
     public static var motion = MotionActivity()
     
+    private static var sensorDataTasks: Set<SahhaSensor> = [] {
+        didSet {
+            if sensorDataTasks.count == 0, sensorDataInfo.count > 0 {
+                var errorString: String?
+                var success: Bool = true
+                for item in sensorDataInfo {
+                    if let error = item.value.error {
+                        if let previousError = errorString {
+                            errorString = previousError + " | " + error
+                        } else {
+                            errorString = error
+                        }
+                    }
+                    if item.value.success == false {
+                        success = false
+                    }
+                }
+                postSensorDataCallback?(errorString, success)
+                postSensorDataCallback = nil
+                sensorDataInfo.removeAll()
+                sensorDataTasks.removeAll()
+            }
+        }
+    }
+    private static var sensorDataInfo: [SahhaSensor:(error: String?, success: Bool)] = [:]
+    private static var postSensorDataCallback: ((String?, Bool) -> Void)? = nil
+    
     private init() {
         print("Sahha | SDK init")
     }
 
-    /** Configure the Sahha SDK
-    - Parameters:
-    - environment: SahhaEnvironment // Development or Production
-    - sensors: Set<SahhaSensor> = [.sleep, .pedometer, .device] // A list of sensors to monitor
-    - postActivityManually: Bool = false // Override Sahha automatic data collection
-     */
     public static func configure(_ settings: SahhaSettings
     ) {
         Self.settings = settings
@@ -75,8 +96,8 @@ public class Sahha {
     
     // MARK: - Authentication
     
-    @discardableResult public static func authenticate(token: String, refreshToken: String) -> Bool {
-        return SahhaCredentials.setCredentials(token: token, refreshToken: refreshToken)
+    @discardableResult public static func authenticate(profileToken: String, refreshToken: String) -> Bool {
+        return SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken)
     }
     
     public static func deauthenticate() {
@@ -91,7 +112,6 @@ public class Sahha {
             case .success(let response):
                 callback(nil, response)
             case .failure(let error):
-                print("sorry")
                 print(error.localizedDescription)
                 callback(error.localizedDescription, nil)
             }
@@ -106,6 +126,49 @@ public class Sahha {
             case .failure(let error):
                 print(error.localizedDescription)
                 callback(error.localizedDescription, false)
+            }
+        }
+    }
+    
+    // MARK: - Sensor Data
+    
+    public static func postSensorData(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, Bool) -> Void) {
+        
+        var sensorList: Set<SahhaSensor>
+        if let sensors = sensors {
+            sensorList = sensors
+        } else {
+            // If list is nil, add all possible sensors
+            sensorList = []
+            for sensor in SahhaSensor.allCases {
+                sensorList.insert(sensor)
+            }
+        }
+        
+        // Save callback
+        postSensorDataCallback = callback
+
+        // Add tasks
+        for sensor in sensorList {
+            switch sensor {
+            case .sleep:
+                if sensorDataTasks.contains(.sleep) == false {
+                    sensorDataTasks.insert(.sleep)
+                    health.postSensorData(.sleep) { error, success in
+                        sensorDataInfo[.sleep] = (error: error, success: success)
+                        sensorDataTasks.remove(.sleep)
+                    }
+                }
+            case .pedometer:
+                if sensorDataTasks.contains(.pedometer) == false {
+                    sensorDataTasks.insert(.pedometer)
+                    motion.postSensorData(.pedometer) { error, success in
+                        sensorDataInfo[.pedometer] = (error: error, success: success)
+                        sensorDataTasks.remove(.pedometer)
+                    }
+                }
+            case .device:
+                break
             }
         }
     }
