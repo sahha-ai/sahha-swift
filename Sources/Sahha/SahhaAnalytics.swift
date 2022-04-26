@@ -1,9 +1,6 @@
 // Copyright © 2022 Sahha. All rights reserved.
 
 import Foundation
-import AppCenter
-import AppCenterAnalytics
-import AppCenterCrashes
 
 enum SahhaAnalyticsEvent: String, Identifiable, Equatable {
     case api_error
@@ -39,17 +36,11 @@ enum SahhaAnalyticsParam: String, Identifiable, Equatable {
 class SahhaAnalytics {
     
     class func configure() {
-        AppCenter.start(withAppSecret: SahhaConfig.appAnalyticsKey, services:[
-            AppCenterAnalytics.Analytics.self,
-            AppCenterCrashes.Crashes.self
-        ])
         print("Sahha | Analytics configured")
     }
     
     class func logEvent(_ identifier: SahhaAnalyticsEvent, params: [SahhaAnalyticsParam : Any]? = nil) {
-        
-        let properties = EventProperties()
-        
+                
         var eventParams: [SahhaAnalyticsParam: Any] = [
             SahhaAnalyticsParam.sdk_id : Sahha.settings.framework,
             SahhaAnalyticsParam.sdk_version : SahhaConfig.sdkVersion,
@@ -66,19 +57,5 @@ class SahhaAnalytics {
                 newParam
             }
         }
-        
-        eventParams.forEach({ (key, value) in
-            if value is String, let stringValue = value as? String {
-                properties.setEventProperty(stringValue, forKey: key.id)
-            } else if value is Int, let intValue = value as? Int64 {
-                properties.setEventProperty(intValue, forKey: key.id)
-            } else if value is Bool, let boolValue = value as? Bool {
-                properties.setEventProperty(boolValue, forKey: key.id)
-            }
-        })
-        
-        print("track error")
-        print(eventParams)
-        AppCenterAnalytics.Analytics.trackEvent(identifier.id, withProperties: properties)
     }
 }
