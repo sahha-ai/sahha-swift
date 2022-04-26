@@ -59,9 +59,9 @@ class SahhaConfig {
     static var apiBasePath: String {
         switch Sahha.settings.environment {
         case .production:
-            return "https://api.sahha.ai/api/"
+            return "https://api.sahha.ai/api/v1/"
         case .development:
-            return "https://sandbox-api.sahha.ai/api/"
+            return "https://sandbox-api.sahha.ai/api/v1/"
         }
     }
     
@@ -70,9 +70,7 @@ class SahhaConfig {
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
     static let appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-    
-    static let deviceId: String = UIDevice.current.identifierForVendor?.uuidString ?? "" // keep privacy
-    
+        
     static let deviceType: String = UIDevice.current.model
 
     static var deviceModel: String {

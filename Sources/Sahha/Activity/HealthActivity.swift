@@ -17,13 +17,13 @@ public class HealthActivity {
     private let store: HKHealthStore = HKHealthStore()
     private var sampleTypes: Set<HKObjectType> = []
     
-    init() {
+    internal init() {
         print("Sahha | Health init")
         //UserDefaults.standard.removeObject(forKey: sleepKey)
         //UserDefaults.standard.removeObject(forKey: stepKey)
     }
     
-    func configure(sensors: Set<SahhaSensor>) {
+    internal func configure(sensors: Set<SahhaSensor>) {
         enabledSensors = activitySensors.intersection(sensors)
         sampleTypes = []
         if enabledSensors.contains(.sleep) {
@@ -41,8 +41,8 @@ public class HealthActivity {
     
     @objc private func onAppOpen() {
         checkAuthorization { [weak self] _ in
-            if Sahha.settings.postActivityManually == false {
-                self?.postActivity()
+            if Sahha.settings.postSensorDataManually == false {
+                self?.postSensorData(.sleep)
             }
         }
     }
@@ -106,29 +106,38 @@ public class HealthActivity {
         }
     }
     
-    public func postActivity(callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
-        guard enabledSensors.contains(.sleep) else {
-            callback?("Sahha | Sleep sensor is missing from Sahha.configure()", false)
+    internal func postSensorData(_ sensor: SahhaSensor, callback:((_ error: String?, _ success: Bool)-> Void)? = nil) {
+        
+        guard enabledSensors.contains(sensor) else {
+            callback?("Sahha | \(sensor.rawValue) sensor is missing from Sahha.configure()", false)
             return
         }
+        
         guard activityStatus == .enabled else {
             callback?("Sahha | Health activity is not enabled", false)
             return
         }
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let lastDate = UserDefaults.standard.date(forKey: sleepKey) ?? yesterday
-        let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
-        guard numberOfMinutes > 360 else {
-            // Minimum of 6 hours between history checks
-            return
-        }
-        checkSleepHistory() { [weak self] identifier, anchor, data, history in
-            self?.activityHistory = history
-            if data.isEmpty == false {
-                self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
-            } else {
-                callback?("Sahha | No new Health activity since last post", false)
+        
+        switch sensor {
+        case .sleep:
+            let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+            let lastDate = UserDefaults.standard.date(forKey: sleepKey) ?? yesterday
+            let numberOfMinutes = Calendar.current.dateComponents([.minute], from: lastDate, to: Date()).minute ?? 0
+            guard numberOfMinutes > 360 else {
+                // Minimum of 6 hours between history checks
+                callback?("Sahha | Health activity data needs more time to collect", false)
+                return
             }
+            checkSleepHistory() { [weak self] identifier, anchor, data, history in
+                self?.activityHistory = history
+                if data.isEmpty == false {
+                    self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
+                } else {
+                    callback?("Sahha | No new Health activity since last post", false)
+                }
+            }
+        default:
+            callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
         }
     }
     
