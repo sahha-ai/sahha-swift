@@ -8,10 +8,10 @@ public class HealthActivity {
     private let sleepKey = "sleepActivityDate"
     private let stepKey = "stepActivityDate"
     
-    public private(set) var activityStatus: SahhaActivityStatus = .pending
-    public private(set) var activityHistory: [HKCategorySample] = []
+    internal private(set) var activityStatus: SahhaSensorStatus = .pending
+    internal private(set) var activityHistory: [HKCategorySample] = []
     
-    private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
+    private let activitySensors: Set<SahhaSensor> = [.sleep/*, .pedometer*/]
     private var enabledSensors: Set<SahhaSensor> = []
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
@@ -50,7 +50,7 @@ public class HealthActivity {
     @objc private func onAppClose() {
     }
     
-    private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
+    private func checkAuthorization(_ callback: ((SahhaSensorStatus)->Void)? = nil) {
         guard isAvailable else {
             activityStatus = .unavailable
             callback?(activityStatus)
@@ -85,7 +85,7 @@ public class HealthActivity {
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func activate(_ callback: @escaping (SahhaActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (SahhaSensorStatus)->Void) {
         
         guard activityStatus == .pending || activityStatus == .disabled else {
             callback(activityStatus)

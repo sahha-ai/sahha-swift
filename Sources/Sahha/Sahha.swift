@@ -27,9 +27,9 @@ public struct SahhaSettings {
 }
 
 public class Sahha {
-    public static var settings = SahhaSettings(environment: .development)
-    public static var health = HealthActivity()
-    public static var motion = MotionActivity()
+    internal static var settings = SahhaSettings(environment: .development)
+    private static var health = HealthActivity()
+    private static var motion = MotionActivity()
     
     private static var sensorDataTasks: Set<SahhaSensor> = [] {
         didSet {
@@ -130,7 +130,34 @@ public class Sahha {
         }
     }
     
-    // MARK: - Sensor Data
+    // MARK: - Sensors
+    
+    public static func getSensorStatus(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
+        switch sensor {
+        case .sleep:
+            callback(health.activityStatus)
+        case .pedometer:
+            callback(motion.activityStatus)
+        case .device:
+            callback(.pending)
+        }
+    }
+    
+    public static func enableSensor(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
+
+        switch sensor {
+        case .sleep:
+            health.activate { newStatus in
+                callback(newStatus)
+            }
+        case .pedometer:
+            motion.activate { newStatus in
+                callback(newStatus)
+            }
+        case .device:
+            callback(.pending)
+        }
+    }
     
     public static func postSensorData(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, Bool) -> Void) {
         

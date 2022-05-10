@@ -8,7 +8,7 @@ public class MotionActivity {
     private let movementKey = "movementActivityDate"
     private let pedometerKey = "pedometerActivityDate"
     
-    public private(set) var activityStatus: SahhaActivityStatus = .pending
+    internal private(set) var activityStatus: SahhaSensorStatus = .pending
     public private(set) var activityHistory: [CMPedometerData] = []
 
     private let activitySensors: Set<SahhaSensor> = [.pedometer]
@@ -43,7 +43,7 @@ public class MotionActivity {
     @objc private func onAppClose() {
     }
     
-    private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
+    private func checkAuthorization(_ callback: ((SahhaSensorStatus)->Void)? = nil) {
         if isAvailable {
             switch CMPedometer.authorizationStatus() {
             case .authorized:
@@ -62,7 +62,7 @@ public class MotionActivity {
     }
     
     /// Activate Motion - callback with result of change to ActivityStatus
-    public func activate(_ callback: @escaping (SahhaActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (SahhaSensorStatus)->Void) {
         
         guard activityStatus == .pending else {
             callback(activityStatus)
