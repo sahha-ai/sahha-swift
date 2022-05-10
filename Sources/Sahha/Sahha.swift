@@ -202,8 +202,13 @@ public class Sahha {
     
     // MARK: - Analyzation
     
-    public static func analyze(callback: @escaping (String?, String?) -> Void) {
-        APIController.getAnalyzation { result in
+    public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
+        var queryParams: [String: String] = [:]
+        if let dates = dates {
+            queryParams["startDate"] = dates.startDate.toTimezoneFormat
+            queryParams["endDate"] = dates.endDate.toTimezoneFormat
+        }
+        APIController.getAnalyzation(queryParams: queryParams) { result in
             switch result {
             case .success(let response):
                 do {
