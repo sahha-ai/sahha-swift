@@ -28,6 +28,10 @@ struct EmptyResponse: Decodable {
     
 }
 
+struct DataResponse: Decodable {
+    var data: Data
+}
+
 class ApiEndpoint {
     enum EndpointPath: String {
         case refreshToken = "oauth/profile/refreshToken"

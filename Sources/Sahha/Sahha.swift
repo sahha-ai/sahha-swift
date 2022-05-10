@@ -211,13 +211,11 @@ public class Sahha {
         APIController.getAnalyzation(queryParams: queryParams) { result in
             switch result {
             case .success(let response):
-                do {
-                    let jsonEncoder = JSONEncoder()
-                    jsonEncoder.outputFormatting = .prettyPrinted
-                    let jsonData = try jsonEncoder.encode(response)
-                    let jsonString = String(data: jsonData, encoding: .utf8)
-                    callback(nil, jsonString)
-                } catch {
+                if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
+                   let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
+                   let prettyPrintedString = String(data: data, encoding: .utf8) {
+                    callback(nil, prettyPrintedString)
+                } else {
                     callback("Analyzation data encoding error", nil)
                 }
             case .failure(let error):
