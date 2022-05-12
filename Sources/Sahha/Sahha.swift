@@ -6,8 +6,8 @@ import UIKit
 public struct SahhaSettings {
     public let environment: SahhaEnvironment /// development or production
     public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
-    public let sensors: Set<SahhaSensor> /// list of 
-    public let postSensorDataManually: Bool
+    public var sensors: Set<SahhaSensor> /// list of
+    public var postSensorDataManually: Bool
     
     public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postSensorDataManually: Bool? = nil) {
         self.environment = environment
