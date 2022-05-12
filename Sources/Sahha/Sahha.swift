@@ -134,10 +134,8 @@ public class Sahha {
     
     public static func getSensorStatus(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
         switch sensor {
-        case .sleep:
+        case .sleep, .pedometer:
             callback(health.activityStatus)
-        case .pedometer:
-            callback(motion.activityStatus)
         case .device:
             callback(.pending)
         }
@@ -146,12 +144,8 @@ public class Sahha {
     public static func enableSensor(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
 
         switch sensor {
-        case .sleep:
+        case .sleep, .pedometer:
             health.activate { newStatus in
-                callback(newStatus)
-            }
-        case .pedometer:
-            motion.activate { newStatus in
                 callback(newStatus)
             }
         case .device:
@@ -189,7 +183,7 @@ public class Sahha {
             case .pedometer:
                 if sensorDataTasks.contains(.pedometer) == false {
                     sensorDataTasks.insert(.pedometer)
-                    motion.postSensorData(.pedometer) { error, success in
+                    health.postSensorData(.pedometer) { error, success in
                         sensorDataInfo[.pedometer] = (error: error, success: success)
                         sensorDataTasks.remove(.pedometer)
                     }

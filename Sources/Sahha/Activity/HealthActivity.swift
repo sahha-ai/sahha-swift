@@ -6,12 +6,12 @@ import HealthKit
 public class HealthActivity {
     
     private let sleepKey = "sleepActivityDate"
-    private let stepKey = "stepActivityDate"
+    private let pedometerKey = "pedometerActivityDate"
     
     internal private(set) var activityStatus: SahhaSensorStatus = .pending
     internal private(set) var activityHistory: [HKCategorySample] = []
     
-    private let activitySensors: Set<SahhaSensor> = [.sleep/*, .pedometer*/]
+    private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
     private var enabledSensors: Set<SahhaSensor> = []
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
@@ -20,7 +20,7 @@ public class HealthActivity {
     internal init() {
         print("Sahha | Health init")
         //UserDefaults.standard.removeObject(forKey: sleepKey)
-        //UserDefaults.standard.removeObject(forKey: stepKey)
+        //UserDefaults.standard.removeObject(forKey: pedometerKey)
     }
     
     internal func configure(sensors: Set<SahhaSensor>) {
