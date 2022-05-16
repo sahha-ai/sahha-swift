@@ -22,20 +22,11 @@ public enum SahhaSensor: String, CaseIterable {
     case device
 }
 
-public enum SahhaActivity: String {
-    case motion
-    case health
-}
-    
-public enum SahhaError: Error {
-    case woops
-}
-
-public enum SahhaActivityStatus: Int {
-    case pending /// Activity support is pending User permission
-    case unavailable /// Activity is not supported by the User's device
-    case disabled /// Activity has been disabled by the User
-    case enabled /// Activity has been enabled by the User
+public enum SahhaSensorStatus: Int {
+    case pending /// Sensor data is pending User permission
+    case unavailable /// Sensor data is not supported by the User's device
+    case disabled /// Sensor data has been disabled by the User
+    case enabled /// Sensor data has been enabled by the User
 
     public var description: String {
         String(describing: self)
@@ -65,7 +56,7 @@ class SahhaConfig {
         }
     }
     
-    static let sdkVersion: String = "0.0.2"
+    static let sdkVersion: String = "0.0.3"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             

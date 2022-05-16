@@ -6,10 +6,10 @@ import HealthKit
 public class HealthActivity {
     
     private let sleepKey = "sleepActivityDate"
-    private let stepKey = "stepActivityDate"
+    private let pedometerKey = "pedometerActivityDate"
     
-    public private(set) var activityStatus: SahhaActivityStatus = .pending
-    public private(set) var activityHistory: [HKCategorySample] = []
+    internal private(set) var activityStatus: SahhaSensorStatus = .pending
+    internal private(set) var activityHistory: [HKCategorySample] = []
     
     private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
     private var enabledSensors: Set<SahhaSensor> = []
@@ -20,7 +20,7 @@ public class HealthActivity {
     internal init() {
         print("Sahha | Health init")
         //UserDefaults.standard.removeObject(forKey: sleepKey)
-        //UserDefaults.standard.removeObject(forKey: stepKey)
+        //UserDefaults.standard.removeObject(forKey: pedometerKey)
     }
     
     internal func configure(sensors: Set<SahhaSensor>) {
@@ -50,7 +50,7 @@ public class HealthActivity {
     @objc private func onAppClose() {
     }
     
-    private func checkAuthorization(_ callback: ((SahhaActivityStatus)->Void)? = nil) {
+    private func checkAuthorization(_ callback: ((SahhaSensorStatus)->Void)? = nil) {
         guard isAvailable else {
             activityStatus = .unavailable
             callback?(activityStatus)
@@ -85,7 +85,7 @@ public class HealthActivity {
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func activate(_ callback: @escaping (SahhaActivityStatus)->Void) {
+    public func activate(_ callback: @escaping (SahhaSensorStatus)->Void) {
         
         guard activityStatus == .pending || activityStatus == .disabled else {
             callback(activityStatus)
@@ -136,6 +136,8 @@ public class HealthActivity {
                     callback?("Sahha | No new Health activity since last post", false)
                 }
             }
+        case .pedometer:
+            callback?(nil, true)
         default:
             callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
         }

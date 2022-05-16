@@ -6,8 +6,8 @@ import UIKit
 public struct SahhaSettings {
     public let environment: SahhaEnvironment /// development or production
     public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
-    public let sensors: Set<SahhaSensor> /// list of 
-    public let postSensorDataManually: Bool
+    public var sensors: Set<SahhaSensor> /// list of
+    public var postSensorDataManually: Bool
     
     public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postSensorDataManually: Bool? = nil) {
         self.environment = environment
@@ -27,9 +27,9 @@ public struct SahhaSettings {
 }
 
 public class Sahha {
-    public static var settings = SahhaSettings(environment: .development)
-    public static var health = HealthActivity()
-    public static var motion = MotionActivity()
+    internal static var settings = SahhaSettings(environment: .development)
+    private static var health = HealthActivity()
+    private static var motion = MotionActivity()
     
     private static var sensorDataTasks: Set<SahhaSensor> = [] {
         didSet {
@@ -130,7 +130,28 @@ public class Sahha {
         }
     }
     
-    // MARK: - Sensor Data
+    // MARK: - Sensors
+    
+    public static func getSensorStatus(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
+        switch sensor {
+        case .sleep, .pedometer:
+            callback(health.activityStatus)
+        case .device:
+            callback(.pending)
+        }
+    }
+    
+    public static func enableSensor(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
+
+        switch sensor {
+        case .sleep, .pedometer:
+            health.activate { newStatus in
+                callback(newStatus)
+            }
+        case .device:
+            callback(.pending)
+        }
+    }
     
     public static func postSensorData(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, Bool) -> Void) {
         
@@ -162,7 +183,7 @@ public class Sahha {
             case .pedometer:
                 if sensorDataTasks.contains(.pedometer) == false {
                     sensorDataTasks.insert(.pedometer)
-                    motion.postSensorData(.pedometer) { error, success in
+                    health.postSensorData(.pedometer) { error, success in
                         sensorDataInfo[.pedometer] = (error: error, success: success)
                         sensorDataTasks.remove(.pedometer)
                     }
@@ -175,17 +196,20 @@ public class Sahha {
     
     // MARK: - Analyzation
     
-    public static func analyze(callback: @escaping (String?, String?) -> Void) {
-        APIController.getAnalyzation { result in
+    public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
+        var queryParams: [String: String] = [:]
+        if let dates = dates {
+            queryParams["startDate"] = dates.startDate.toTimezoneFormat
+            queryParams["endDate"] = dates.endDate.toTimezoneFormat
+        }
+        APIController.getAnalyzation(queryParams: queryParams) { result in
             switch result {
             case .success(let response):
-                do {
-                    let jsonEncoder = JSONEncoder()
-                    jsonEncoder.outputFormatting = .prettyPrinted
-                    let jsonData = try jsonEncoder.encode(response)
-                    let jsonString = String(data: jsonData, encoding: .utf8)
-                    callback(nil, jsonString)
-                } catch {
+                if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
+                   let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
+                   let prettyPrintedString = String(data: data, encoding: .utf8) {
+                    callback(nil, prettyPrintedString)
+                } else {
                     callback("Analyzation data encoding error", nil)
                 }
             case .failure(let error):
@@ -196,7 +220,9 @@ public class Sahha {
     }
     
     public static func openAppSettings() {
-        UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
+        DispatchQueue.main.async {
+            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
+            }
         }
     }
 }

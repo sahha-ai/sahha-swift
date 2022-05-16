@@ -28,6 +28,10 @@ struct EmptyResponse: Decodable {
     
 }
 
+struct DataResponse: Decodable {
+    var data: Data
+}
+
 class ApiEndpoint {
     enum EndpointPath: String {
         case refreshToken = "oauth/profile/refreshToken"
@@ -53,11 +57,27 @@ class ApiEndpoint {
         }
     }
     
-    init(_ endpointPath: EndpointPath, _ queryParams: String...) {
+    init(_ endpointPath: EndpointPath, _ subPaths: String...) {
         self.endpointPath = endpointPath
         var urlPath = endpointPath.rawValue
-        for param in queryParams {
-            urlPath.append(param)
+        for subPath in subPaths {
+            urlPath.append(subPath)
+        }
+        self.relativePath = urlPath
+        self.path = SahhaConfig.apiBasePath + urlPath
+    }
+    
+    init(_ endpointPath: EndpointPath, _ queryParams: [String:String]) {
+        self.endpointPath = endpointPath
+        var urlPath = endpointPath.rawValue
+        for (index, queryParam) in queryParams.enumerated() {
+            // escape string
+            let escapedString = queryParam.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? queryParam.value
+            if (index == 0) {
+                urlPath.append("?\(queryParam.key)=\(escapedString)")
+            } else {
+                urlPath.append("&\(queryParam.key)=\(escapedString)")
+            }
         }
         self.relativePath = urlPath
         self.path = SahhaConfig.apiBasePath + urlPath

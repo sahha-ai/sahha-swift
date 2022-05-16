@@ -151,6 +151,8 @@ class APIRequest {
                             }
                         case .failure(let error):
                             print(error.localizedDescription)
+                            onComplete(.failure(.authError))
+                            return
                         }
                     }
                 }
@@ -165,13 +167,20 @@ class APIRequest {
                     }
                 return
             }
+            
+            if urlResponse.statusCode == 204, decodable is DataResponse.Type, let responseData = "{}".data(using: .utf8), let dataResponse = DataResponse(data: responseData) as? D {
+                onComplete(.success(dataResponse))
+                return
+            }
+            
             if decodable is EmptyResponse.Type, let emptyResponse = EmptyResponse() as? D {
                 DispatchQueue.main.async {
                     onComplete(.success(emptyResponse))
                 }
                 return
             }
-            guard let data = data else {
+
+            guard let jsonData = data else {
                 DispatchQueue.main.async {
                     eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
                     eventParams[SahhaAnalyticsParam.error_message] = "Missing response data"
@@ -181,9 +190,14 @@ class APIRequest {
                 return
             }
             
+            if decodable is DataResponse.Type, let dataResponse = DataResponse(data: jsonData) as? D {
+                onComplete(.success(dataResponse))
+                return
+            }
+            
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
-            guard let decoded = try? decoder.decode(decodable.self, from: data) else {
+            guard let decoded = try? decoder.decode(decodable.self, from: jsonData) else {
                 DispatchQueue.main.async {
                     eventParams[SahhaAnalyticsParam.error_type] = ApiError.decodingError.id
                     SahhaAnalytics.logEvent(.api_error, params: eventParams)
