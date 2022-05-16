@@ -151,6 +151,8 @@ class APIRequest {
                             }
                         case .failure(let error):
                             print(error.localizedDescription)
+                            onComplete(.failure(.authError))
+                            return
                         }
                     }
                 }

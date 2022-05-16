@@ -136,6 +136,8 @@ public class HealthActivity {
                     callback?("Sahha | No new Health activity since last post", false)
                 }
             }
+        case .pedometer:
+            callback?(nil, true)
         default:
             callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
         }
