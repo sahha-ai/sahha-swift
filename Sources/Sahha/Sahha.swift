@@ -65,9 +65,7 @@ public class Sahha {
     public static func configure(_ settings: SahhaSettings
     ) {
         Self.settings = settings
-        
-        SahhaAnalytics.configure()
-        
+                
         SahhaCredentials.getCredentials()
                 
         health.configure(sensors: settings.sensors)

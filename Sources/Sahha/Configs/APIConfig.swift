@@ -4,7 +4,6 @@ import Foundation
 
 enum ApiError: String, Error {
     case authError      = "Authentication Error"
-    case tokenError     = "Token Error"
     case encodingError  = "Encoding Error"
     case serverError    = "Server error"
     case responseError  = "Response error"
