@@ -19,6 +19,8 @@ struct ErrorModel: Encodable
     var apiURL: String?
     var apiMethod: String?
     var apiBody: String?
+    var appMethod: String?
+    var appBody: String?
 }
 
 struct ApiErrorModel: Encodable
@@ -29,4 +31,10 @@ struct ApiErrorModel: Encodable
     var apiURL: String?
     var apiMethod: String?
     var apiBody: String?
+}
+
+struct AppErrorModel: Encodable
+{
+    var appMethod: String?
+    var appBody: String?
 }

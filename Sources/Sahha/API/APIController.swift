@@ -26,15 +26,32 @@ class APIController {
     
     static func postApiError(_ error: ApiErrorModel) {
         
-        guard let url = URL(string: "https://sandbox-error-api.sahha.ai/api/v1/error") else {return}
+        var body = ErrorModel()
+
+        body.errorCode = error.errorCode
+        body.errorType = error.errorType
+        body.errorMessage = error.errorMessage
+        body.apiURL = error.apiURL
+        body.apiMethod = error.apiMethod
+        body.apiBody = error.apiBody
         
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        postError(body)
+    }
+    
+    static func postAppError(_ error: AppErrorModel) {
         
         var body = ErrorModel()
+
+        body.appMethod = error.appMethod
+        body.appBody = error.appBody
         
-        // Base values
+        postError(body)
+    }
+    
+    private static func postError(_ error: ErrorModel) {
+        
+        var body = error
+                
         body.sdkId = Sahha.settings.framework.rawValue
         body.sdkVersion = SahhaConfig.sdkVersion
         body.appId = SahhaConfig.appId
@@ -44,12 +61,23 @@ class APIController {
         body.system = SahhaConfig.system
         body.systemVersion = SahhaConfig.systemVersion
         
-        // Custom values
-        body.errorCode = error.errorCode
-        body.errorType = error.errorType
-        body.errorMessage = error.errorMessage
-        body.apiURL = error.apiURL
-        body.apiMethod = error.apiMethod
-        body.apiBody = error.apiBody
+        guard let url = URL(string: "https://sandbox-error-api.sahha.ai/api/v1/error") else {return}
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        guard let profileToken = SahhaCredentials.profileToken, let jsonBody = try? JSONEncoder().encode(body)
+        else {
+            return
+        }
+        
+        let authValue = "Profile \(profileToken)"
+        urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = jsonBody
+        
+        URLSession.shared.dataTask(with: urlRequest) { (_, _, _) in
+        }.resume()
+        
     }
 }
