@@ -71,7 +71,7 @@ class ApiEndpoint {
         var urlPath = endpointPath.rawValue
         for (index, queryParam) in queryParams.enumerated() {
             // escape string
-            let escapedString = queryParam.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? queryParam.value
+            let escapedString = queryParam.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? queryParam.value
             if (index == 0) {
                 urlPath.append("?\(queryParam.key)=\(escapedString)")
             } else {
