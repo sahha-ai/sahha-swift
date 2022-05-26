@@ -13,6 +13,7 @@ struct ErrorModel: Encodable
     var deviceModel: String?
     var system: String?
     var systemVersion: String?
+    var errorSource: String?
     var errorCode: Int?
     var errorType: String?
     var errorMessage: String?

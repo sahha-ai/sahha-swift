@@ -28,6 +28,7 @@ class APIController {
         
         var body = ErrorModel()
 
+        body.errorSource = "api"
         body.errorCode = error.errorCode
         body.errorType = error.errorType
         body.errorMessage = error.errorMessage
@@ -42,6 +43,7 @@ class APIController {
         
         var body = ErrorModel()
 
+        body.errorSource = "app"
         body.appMethod = error.appMethod
         body.appBody = error.appBody
         
