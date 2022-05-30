@@ -34,16 +34,13 @@ public class HealthActivity {
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
-        
+                
         NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
         print("Sahha | Health configured")
     }
     
     @objc private func onAppOpen() {
-        checkAuthorization { [weak self] _ in
-            if Sahha.settings.postSensorDataManually == false {
-                self?.postSensorData(.sleep)
-            }
+        checkAuthorization { _ in
         }
     }
     
@@ -74,7 +71,10 @@ public class HealthActivity {
             } else {
                 switch status {
                 case .unnecessary:
-                    self.activityStatus = .enabled
+                    if self.activityStatus != .enabled {
+                        self.activityStatus = .enabled
+                        self.setupBackgroundDelivery()
+                    }
                 default:
                     self.activityStatus = .pending
                 }
@@ -113,6 +113,11 @@ public class HealthActivity {
             return
         }
         
+        guard isAvailable else {
+            callback?("Sahha | Health activity is not available", false)
+            return
+        }
+        
         guard activityStatus == .enabled else {
             callback?("Sahha | Health activity is not enabled", false)
             return
@@ -140,6 +145,45 @@ public class HealthActivity {
             callback?(nil, true)
         default:
             callback?("Sahha | \(sensor.rawValue) sensor is not available", false)
+        }
+    }
+    
+    private func setupBackgroundDelivery() {
+        
+        guard isAvailable else {
+            return
+        }
+        
+        guard activityStatus == .enabled else {
+            return
+        }
+        
+        print("Sahha | Health background delivery ready")
+        
+        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            enableBackgroundDelivery(healthType: sleepType, sensor: .sleep)
+        }
+        if let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) {
+            enableBackgroundDelivery(healthType: stepType, sensor: .pedometer)
+        }
+    }
+    
+    private func enableBackgroundDelivery(healthType: HKObjectType, sensor: SahhaSensor) {
+        store.enableBackgroundDelivery(for: healthType, frequency: HKUpdateFrequency.hourly) { [weak self] success, error in
+            print("Sahha | Health background delivery triggered for \(sensor.rawValue)")
+            if let error = error {
+                print(error.localizedDescription)
+                return
+            }
+            switch success {
+            case true:
+                if Sahha.settings.postSensorDataManually == false {
+                    self?.postSensorData(sensor)
+                }
+                return
+            case false:
+                return
+            }
         }
     }
     
