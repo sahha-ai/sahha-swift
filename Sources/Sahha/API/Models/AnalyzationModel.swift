@@ -2,6 +2,16 @@
 
 import Foundation
 
+struct AnalyzationRequest: Encodable {
+    var startDateTime: String?
+    var endDateTime: String?
+    
+    init(startDate: Date?, endDate: Date?) {
+        self.startDateTime = startDate?.toTimezoneFormat
+        self.endDateTime = endDate?.toTimezoneFormat
+    }
+}
+
 struct AnalyzationResponse: Codable {
     var id: String
     var createdAt: String

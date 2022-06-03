@@ -16,8 +16,8 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getAnalyzation(queryParams: [String: String] = [:], _ onComplete: @escaping (Result<DataResponse, ApiError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.analyze, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
+    static func postAnalyzation(body: AnalyzationRequest, _ onComplete: @escaping (Result<DataResponse, ApiError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.analyze), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
     static func postSleep(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
