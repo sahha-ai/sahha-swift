@@ -4,7 +4,6 @@ import Foundation
 
 enum ApiError: String, Error {
     case authError      = "Authentication Error"
-    case tokenError     = "Token Error"
     case encodingError  = "Encoding Error"
     case serverError    = "Server error"
     case responseError  = "Response error"
@@ -72,7 +71,7 @@ class ApiEndpoint {
         var urlPath = endpointPath.rawValue
         for (index, queryParam) in queryParams.enumerated() {
             // escape string
-            let escapedString = queryParam.value.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? queryParam.value
+            let escapedString = queryParam.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? queryParam.value
             if (index == 0) {
                 urlPath.append("?\(queryParam.key)=\(escapedString)")
             } else {

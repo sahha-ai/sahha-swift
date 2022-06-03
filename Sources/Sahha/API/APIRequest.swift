@@ -11,11 +11,14 @@ class APIRequest {
                 body = try JSONEncoder().encode(encodable)
             } catch {
                 DispatchQueue.main.async {
-                    SahhaAnalytics.logEvent(.api_error, params: [SahhaAnalyticsParam.error_type : ApiError.encodingError.id,
-                                                                 SahhaAnalyticsParam.api_url : endpoint.relativePath,
-                                                                 SahhaAnalyticsParam.api_method : method.rawValue,
-                                                                 SahhaAnalyticsParam.api_auth : endpoint.isAuthRequired])
-
+                    if endpoint.isAuthRequired {
+                        var apiError = ApiErrorModel()
+                        apiError.errorType = ApiError.encodingError.id
+                        apiError.apiURL = endpoint.relativePath
+                        apiError.apiMethod = method.rawValue
+                        APIController.postApiError(apiError)
+                    }
+                    
                     onComplete(.failure(.encodingError))
                 }
                 return
@@ -32,11 +35,10 @@ class APIRequest {
         urlRequest.httpMethod = method.rawValue
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        var eventParams: [SahhaAnalyticsParam: Any] = [
-            SahhaAnalyticsParam.api_url : endpoint.relativePath,
-            SahhaAnalyticsParam.api_method : method.rawValue,
-            SahhaAnalyticsParam.api_auth : endpoint.isAuthRequired
-        ]
+        // Use if an error occurs
+        var apiError = ApiErrorModel()
+        apiError.apiURL = endpoint.relativePath
+        apiError.apiMethod = method.rawValue
         
         do {
             if let jsonData = body, let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] {
@@ -50,7 +52,7 @@ class APIRequest {
                 if let _ = jsonObject["refreshToken"] as? String {
                     jsonBody["refreshToken"] = "******"
                 }
-                eventParams[SahhaAnalyticsParam.api_body] = jsonBody.description
+                apiError.apiBody = jsonBody.description
             }
         } catch {
             print(error.localizedDescription)
@@ -63,9 +65,9 @@ class APIRequest {
             } else {
                 // cancel request
                 print("Sahha | Aborting unauthorized", method.rawValue, url.absoluteString)
-                eventParams[SahhaAnalyticsParam.error_type] = ApiError.authError.id
-                eventParams[SahhaAnalyticsParam.error_message] = "Missing token"
-                SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                apiError.errorType = ApiError.authError.id
+                apiError.errorMessage = "Missing token"
+                APIController.postApiError(apiError)
                 onComplete(.failure(.authError))
                 return
             }
@@ -86,9 +88,9 @@ class APIRequest {
             if let body = body {
                 urlRequest.httpBody = body
             } else {
-                eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
-                eventParams[SahhaAnalyticsParam.error_message] = "Missing request data"
-                SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                apiError.errorType = ApiError.missingData.id
+                apiError.errorMessage = "Missing request data"
+                APIController.postApiError(apiError)
                 print("Sahha | Aborting missing request body", method.rawValue, url.absoluteString)
                 return
             }
@@ -105,9 +107,9 @@ class APIRequest {
             if let error = error {
                 print(error.localizedDescription)
                 DispatchQueue.main.async {
-                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.serverError.id
-                    eventParams[SahhaAnalyticsParam.error_message] = error.localizedDescription
-                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                    apiError.errorType = ApiError.serverError.id
+                    apiError.errorMessage = error.localizedDescription
+                    APIController.postApiError(apiError)
                     onComplete(.failure(.serverError))
                 }
                 return
@@ -115,26 +117,20 @@ class APIRequest {
             
             guard let urlResponse = response as? HTTPURLResponse else {
                     DispatchQueue.main.async {
-                        eventParams[SahhaAnalyticsParam.error_type] = ApiError.serverError.id
-                        eventParams[SahhaAnalyticsParam.error_message] = "Missing response"
-                        SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                        apiError.errorType = ApiError.serverError.id
+                        apiError.errorMessage = "Missing response"
+                        APIController.postApiError(apiError)
                         onComplete(.failure(.responseError))
                 }
                 return
             }
             print("\(urlResponse.statusCode) : " + url.absoluteString)
             
-            eventParams[SahhaAnalyticsParam.error_code] = urlResponse.statusCode
+            apiError.errorCode = urlResponse.statusCode
             
             // Token has expired
             if urlResponse.statusCode == 401 {
                 print("Sahha | Authorization token is expired")
-                
-                DispatchQueue.main.async {
-                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.tokenError.id
-                    eventParams[SahhaAnalyticsParam.error_message] = "Token expired"
-                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
-                }
                 
                 // Get a new token
                 if let profileToken = SahhaCredentials.profileToken, let refreshToken = SahhaCredentials.refreshToken {
@@ -151,7 +147,14 @@ class APIRequest {
                             }
                         case .failure(let error):
                             print(error.localizedDescription)
-                            onComplete(.failure(.authError))
+                            
+                            DispatchQueue.main.async {
+                                apiError.errorType = ApiError.authError.id
+                                apiError.errorMessage = error.localizedDescription
+                                APIController.postApiError(apiError)
+                                
+                                onComplete(.failure(.authError))
+                            }
                             return
                         }
                     }
@@ -160,9 +163,9 @@ class APIRequest {
                 
             } else if urlResponse.statusCode >= 300 {
                     DispatchQueue.main.async {
-                        eventParams[SahhaAnalyticsParam.error_type] = ApiError.responseError.id
-                        eventParams[SahhaAnalyticsParam.error_message] = HTTPURLResponse.localizedString(forStatusCode: urlResponse.statusCode)
-                        SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                        apiError.errorType = ApiError.responseError.id
+                        apiError.errorMessage = HTTPURLResponse.localizedString(forStatusCode: urlResponse.statusCode)
+                        APIController.postApiError(apiError)
                         onComplete(.failure(.responseError))
                     }
                 return
@@ -182,9 +185,9 @@ class APIRequest {
 
             guard let jsonData = data else {
                 DispatchQueue.main.async {
-                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.missingData.id
-                    eventParams[SahhaAnalyticsParam.error_message] = "Missing response data"
-                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                    apiError.errorType = ApiError.missingData.id
+                    apiError.errorMessage = "Missing response data"
+                    APIController.postApiError(apiError)
                     onComplete(.failure(.missingData))
                 }
                 return
@@ -199,8 +202,8 @@ class APIRequest {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             guard let decoded = try? decoder.decode(decodable.self, from: jsonData) else {
                 DispatchQueue.main.async {
-                    eventParams[SahhaAnalyticsParam.error_type] = ApiError.decodingError.id
-                    SahhaAnalytics.logEvent(.api_error, params: eventParams)
+                    apiError.errorType = ApiError.decodingError.id
+                    APIController.postApiError(apiError)
                     onComplete(.failure(.decodingError))
                 }
                 return

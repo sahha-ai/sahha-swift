@@ -65,9 +65,7 @@ public class Sahha {
     public static func configure(_ settings: SahhaSettings
     ) {
         Self.settings = settings
-        
-        SahhaAnalytics.configure()
-        
+                
         SahhaCredentials.getCredentials()
                 
         health.configure(sensors: settings.sensors)
@@ -197,12 +195,7 @@ public class Sahha {
     // MARK: - Analyzation
     
     public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
-        var queryParams: [String: String] = [:]
-        if let dates = dates {
-            queryParams["startDate"] = dates.startDate.toTimezoneFormat
-            queryParams["endDate"] = dates.endDate.toTimezoneFormat
-        }
-        APIController.getAnalyzation(queryParams: queryParams) { result in
+        APIController.postAnalyzation(body: AnalyzationRequest(startDate: dates?.startDate, endDate: dates?.endDate)) { result in
             switch result {
             case .success(let response):
                 if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
