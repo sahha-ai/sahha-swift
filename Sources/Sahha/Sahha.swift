@@ -194,8 +194,8 @@ public class Sahha {
     
     // MARK: - Analyzation
     
-    public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
-        APIController.postAnalyzation(body: AnalyzationRequest(startDate: dates?.startDate, endDate: dates?.endDate)) { result in
+    public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, includeSourceData:Bool = false, callback: @escaping (String?, String?) -> Void) {
+        APIController.postAnalyzation(body: AnalyzationRequest(startDate: dates?.startDate, endDate: dates?.endDate, includeSourceData: includeSourceData)) { result in
             switch result {
             case .success(let response):
                 if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),

@@ -5,10 +5,12 @@ import Foundation
 struct AnalyzationRequest: Encodable {
     var startDateTime: String?
     var endDateTime: String?
+    var includeSourceData: Bool
     
-    init(startDate: Date?, endDate: Date?) {
+    init(startDate: Date?, endDate: Date?, includeSourceData: Bool) {
         self.startDateTime = startDate?.toTimezoneFormat
         self.endDateTime = endDate?.toTimezoneFormat
+        self.includeSourceData = includeSourceData
     }
 }
 
