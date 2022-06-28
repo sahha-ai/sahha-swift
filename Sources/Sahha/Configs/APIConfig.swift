@@ -29,12 +29,9 @@ struct DataResponse: Decodable {
 class ApiEndpoint {
     enum EndpointPath: String {
         case refreshToken = "oauth/profile/refreshToken"
-        case deviceActivity = "deviceActivity"
-        case lock = "deviceActivity/lock"
-        case lockRange = "deviceActivity/lockRange"
         case demographic = "profile/demographic"
         case analyze = "profile/analyze"
-        case sleepRange = "sleep/logRange"
+        case sleep = "sleep/log"
     }
     
     let endpointPath: EndpointPath

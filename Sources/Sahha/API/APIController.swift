@@ -17,11 +17,11 @@ class APIController {
     }
     
     static func postAnalyzation(body: AnalyzationRequest, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.sleepRange), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
+        APIRequest.execute(ApiEndpoint(.analyze), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
     static func postSleep(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.sleepRange), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+        APIRequest.execute(ApiEndpoint(.sleep), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postApiError(_ error: ApiErrorModel) {
