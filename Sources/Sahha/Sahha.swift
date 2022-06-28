@@ -110,8 +110,8 @@ public class Sahha {
             case .success(let response):
                 callback(nil, response)
             case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, nil)
+                print(error.message)
+                callback(error.message, nil)
             }
         }
     }
@@ -122,8 +122,8 @@ public class Sahha {
             case .success(_):
                 callback(nil, true)
             case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, false)
+                print(error.message)
+                callback(error.message, false)
             }
         }
     }
@@ -206,8 +206,8 @@ public class Sahha {
                     callback("Analyzation data encoding error", nil)
                 }
             case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, nil)
+                print(error.message)
+                callback(error.message, nil)
             }
         }
     }

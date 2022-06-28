@@ -56,6 +56,15 @@ class SahhaConfig {
         }
     }
     
+    static var apiErrorPath: String {
+        switch Sahha.settings.environment {
+        case .production:
+            return "https://error-api.sahha.ai/api/v1/error"
+        case .development:
+            return "https://sandbox-error-api.sahha.ai/api/v1/error"
+        }
+    }
+    
     static let sdkVersion: String = "0.0.4"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""

@@ -4,23 +4,23 @@ import Foundation
 
 class APIController {
     
-    static func postRefreshToken(body: RefreshTokenRequest, _ onComplete: @escaping (Result<TokenResponse, ApiError>) -> Void) {
+    static func postRefreshToken(body: RefreshTokenRequest, _ onComplete: @escaping (Result<TokenResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.refreshToken), .post, encodable: body, decodable: TokenResponse.self, onComplete: onComplete)
     }
     
-    static func getDemographic(_ onComplete: @escaping (Result<SahhaDemographic, ApiError>) -> Void) {
+    static func getDemographic(_ onComplete: @escaping (Result<SahhaDemographic, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.demographic), .get, decodable: SahhaDemographic.self, onComplete: onComplete)
     }
     
-    static func putDemographic(body: SahhaDemographic, _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+    static func putDemographic(body: SahhaDemographic, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.demographic), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func postAnalyzation(body: AnalyzationRequest, _ onComplete: @escaping (Result<DataResponse, ApiError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.analyze), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
+    static func postAnalyzation(body: AnalyzationRequest, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.sleepRange), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
-    static func postSleep(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, ApiError>) -> Void) {
+    static func postSleep(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.sleepRange), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
@@ -62,8 +62,8 @@ class APIController {
         body.deviceModel = SahhaConfig.deviceModel
         body.system = SahhaConfig.system
         body.systemVersion = SahhaConfig.systemVersion
-        
-        guard let url = URL(string: "https://sandbox-error-api.sahha.ai/api/v1/error") else {return}
+                
+        guard let url = URL(string: SahhaConfig.apiErrorPath) else {return}
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"

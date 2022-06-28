@@ -2,6 +2,31 @@
 
 import Foundation
 
+struct SahhaError: Error {
+    var message: String
+}
+
+struct ResponseError: Codable
+{
+    var title: String
+    var statusCode: Int
+    var location: String
+    var errors: [ResponseErrorItem]
+    
+    func toString() -> String {
+        guard let data = try? JSONEncoder().encode(self), let string = String(data: data,
+                                                                              encoding: .utf8) else {
+            return ""
+        }
+        return string
+    }
+}
+
+struct ResponseErrorItem: Codable {
+    var origin: String
+    var errors: [String]
+}
+
 struct ErrorModel: Encodable
 {
     var sdkId: String?
@@ -32,6 +57,13 @@ struct ApiErrorModel: Encodable
     var apiURL: String?
     var apiMethod: String?
     var apiBody: String?
+    
+    mutating func fromErrorResponse(_ errorResponse: ResponseError) -> ApiErrorModel {
+        self.errorCode = errorResponse.statusCode
+        self.errorMessage = errorResponse.toString()
+        self.errorType = errorResponse.location
+        return self
+    }
 }
 
 struct AppErrorModel: Encodable

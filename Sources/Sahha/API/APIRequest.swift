@@ -4,22 +4,19 @@ import SwiftUI
 
 class APIRequest {
     
-    static func execute<E: Encodable, D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, encodable: E, decodable: D.Type, onComplete: @escaping (Result<D, ApiError>) -> Void) {
+    static func execute<E: Encodable, D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, encodable: E, decodable: D.Type, onComplete: @escaping (Result<D, SahhaError>) -> Void) {
         DispatchQueue.global(qos: .background).async {
             let body: Data
             do {
                 body = try JSONEncoder().encode(encodable)
             } catch {
                 DispatchQueue.main.async {
-                    if endpoint.isAuthRequired {
-                        var apiError = ApiErrorModel()
-                        apiError.errorType = ApiError.encodingError.id
-                        apiError.apiURL = endpoint.relativePath
-                        apiError.apiMethod = method.rawValue
-                        APIController.postApiError(apiError)
-                    }
-                    
-                    onComplete(.failure(.encodingError))
+                    let errorResponse = ResponseError(title: "Request encoding error", statusCode: 0, location: ApiErrorLocation.encoding.rawValue, errors: [])
+                    var apiError = ApiErrorModel()
+                    apiError.apiURL = endpoint.relativePath
+                    apiError.apiMethod = method.rawValue
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
                 }
                 return
             }
@@ -27,7 +24,7 @@ class APIRequest {
         }
     }
     
-    static func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, onComplete: @escaping (Result<D, ApiError>) -> Void) {
+    static func execute<D: Decodable>(_ endpoint: ApiEndpoint, _ method: ApiMethod, body: Data? = nil, decodable: D.Type, onComplete: @escaping (Result<D, SahhaError>) -> Void) {
         
         guard let url = URL(string: endpoint.path) else {return}
         
@@ -57,47 +54,48 @@ class APIRequest {
         } catch {
             print(error.localizedDescription)
         }
-
+        
         if endpoint.isAuthRequired {
             if let profileToken = SahhaCredentials.profileToken {
                 let authValue = "Profile \(profileToken)"
                 urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
-                // cancel request
-                print("Sahha | Aborting unauthorized", method.rawValue, url.absoluteString)
-                apiError.errorType = ApiError.authError.id
-                apiError.errorMessage = "Missing token"
-                APIController.postApiError(apiError)
-                onComplete(.failure(.authError))
+                DispatchQueue.main.async {
+                    let errorResponse = ResponseError(title: "Missing profile token", statusCode: 0, location: ApiErrorLocation.authentication.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                }
                 return
             }
         }
         
         // Don't fetch the same task at the same time
         if ApiEndpoint.activeTasks.contains(endpoint.path) {
-            print("Sahha | Aborting duplicated", method.rawValue, url.absoluteString)
+            print("Sahha | Aborting duplicated", method.rawValue, endpoint.relativePath)
             return
         }
         
         ApiEndpoint.activeTasks.append(endpoint.path)
-
-        print("Sahha | Trying", method.rawValue, url.absoluteString)
+        
+        print("Sahha | Trying", method.rawValue, url.relativeString)
         
         switch method {
         case .post, .put, .patch:
             if let body = body {
                 urlRequest.httpBody = body
             } else {
-                apiError.errorType = ApiError.missingData.id
-                apiError.errorMessage = "Missing request data"
-                APIController.postApiError(apiError)
-                print("Sahha | Aborting missing request body", method.rawValue, url.absoluteString)
+                print("Sahha | Aborting missing request body", method.rawValue, endpoint.relativePath)
+                DispatchQueue.main.async {
+                    let errorResponse = ResponseError(title: "Missing request body", statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                }
                 return
             }
         default:
             break
         }
-
+        
         URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
             
             ApiEndpoint.activeTasks.removeAll {
@@ -107,24 +105,22 @@ class APIRequest {
             if let error = error {
                 print(error.localizedDescription)
                 DispatchQueue.main.async {
-                    apiError.errorType = ApiError.serverError.id
-                    apiError.errorMessage = error.localizedDescription
-                    APIController.postApiError(apiError)
-                    onComplete(.failure(.serverError))
+                    let errorResponse = ResponseError(title: error.localizedDescription, statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
                 }
                 return
             }
             
             guard let urlResponse = response as? HTTPURLResponse else {
-                    DispatchQueue.main.async {
-                        apiError.errorType = ApiError.serverError.id
-                        apiError.errorMessage = "Missing response"
-                        APIController.postApiError(apiError)
-                        onComplete(.failure(.responseError))
+                DispatchQueue.main.async {
+                    let errorResponse = ResponseError(title: "Missing response", statusCode: 0, location: ApiErrorLocation.response.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
                 }
                 return
             }
-            print("\(urlResponse.statusCode) : " + url.absoluteString)
+            print("\(urlResponse.statusCode) : " + url.relativePath)
             
             apiError.errorCode = urlResponse.statusCode
             
@@ -141,34 +137,21 @@ class APIRequest {
                                 
                                 // Save new token
                                 SahhaCredentials.setCredentials(profileToken: response.profileToken ?? "", refreshToken: response.refreshToken ?? "")
-
+                                
                                 // Try failed endpoint again
                                 APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
                             }
                         case .failure(let error):
-                            print(error.localizedDescription)
-                            
+                            print(error.message)
                             DispatchQueue.main.async {
-                                apiError.errorType = ApiError.authError.id
-                                apiError.errorMessage = error.localizedDescription
-                                APIController.postApiError(apiError)
-                                
-                                onComplete(.failure(.authError))
+                                onComplete(.failure(error))
                             }
-                            return
                         }
+                        return
                     }
                 }
                 return
                 
-            } else if urlResponse.statusCode >= 300 {
-                    DispatchQueue.main.async {
-                        apiError.errorType = ApiError.responseError.id
-                        apiError.errorMessage = HTTPURLResponse.localizedString(forStatusCode: urlResponse.statusCode)
-                        APIController.postApiError(apiError)
-                        onComplete(.failure(.responseError))
-                    }
-                return
             }
             
             if urlResponse.statusCode == 204, decodable is DataResponse.Type, let responseData = "{}".data(using: .utf8), let dataResponse = DataResponse(data: responseData) as? D {
@@ -176,19 +159,39 @@ class APIRequest {
                 return
             }
             
-            if decodable is EmptyResponse.Type, let emptyResponse = EmptyResponse() as? D {
+            if urlResponse.statusCode < 300, decodable is EmptyResponse.Type, let emptyResponse = EmptyResponse() as? D {
                 DispatchQueue.main.async {
                     onComplete(.success(emptyResponse))
                 }
                 return
             }
-
+            
             guard let jsonData = data else {
                 DispatchQueue.main.async {
-                    apiError.errorType = ApiError.missingData.id
-                    apiError.errorMessage = "Missing response data"
-                    APIController.postApiError(apiError)
-                    onComplete(.failure(.missingData))
+                    let errorResponse = ResponseError(title: "Missing response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.response.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                }
+                return
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            
+            if urlResponse.statusCode >= 300 {
+                
+                guard let decoded = try? decoder.decode(ResponseError.self, from: jsonData) else {
+                    DispatchQueue.main.async {
+                        let errorResponse = ResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
+                        APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                        onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    }
+                    return
+                }
+                                
+                DispatchQueue.main.async {
+                    APIController.postApiError(apiError.fromErrorResponse(decoded))
+                    onComplete(.failure(SahhaError(message: decoded.toString())))
                 }
                 return
             }
@@ -198,13 +201,11 @@ class APIRequest {
                 return
             }
             
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
             guard let decoded = try? decoder.decode(decodable.self, from: jsonData) else {
                 DispatchQueue.main.async {
-                    apiError.errorType = ApiError.decodingError.id
-                    APIController.postApiError(apiError)
-                    onComplete(.failure(.decodingError))
+                    let errorResponse = ResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
+                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
+                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
                 }
                 return
             }

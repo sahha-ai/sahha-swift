@@ -2,17 +2,12 @@
 
 import Foundation
 
-enum ApiError: String, Error {
-    case authError      = "Authentication Error"
-    case encodingError  = "Encoding Error"
-    case serverError    = "Server error"
-    case responseError  = "Response error"
-    case decodingError  = "Decoding error"
-    case missingData    = "Missing data"
-    
-    var id: String {
-        return self.rawValue
-    }
+enum ApiErrorLocation: String, Error {
+    case authentication
+    case request
+    case encoding
+    case decoding
+    case response
 }
 
 enum ApiMethod: String {
