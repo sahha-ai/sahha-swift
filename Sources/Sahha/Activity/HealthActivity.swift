@@ -193,7 +193,11 @@ public class HealthActivity {
                 if let samples = data as? [HKQuantitySample] {
                     var healthSamples: [HealthRequest] = []
                     for sample in samples {
-                        let healthSample = HealthRequest(count: sample.quantity.doubleValue(for: unit), startDate: sample.startDate, endDate: sample.endDate)
+                        var manuallyEntered: Bool = false
+                        if let wasUserEntered = sample.metadata?["HKWasUserEntered"] as? NSNumber, wasUserEntered.boolValue == true {
+                            manuallyEntered = true
+                        }
+                        let healthSample = HealthRequest(dataType: typeId.rawValue, count: sample.quantity.doubleValue(for: unit), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
                         healthSamples.append(healthSample)
                     }
                     if healthSamples.isEmpty == false {
@@ -211,16 +215,22 @@ public class HealthActivity {
                     var requests: [SleepRequest] = []
                     for sample in samples {
                         var request: SleepRequest?
+                        let sleepStage: SleepStage
                         switch sample.value {
                         case HKCategoryValueSleepAnalysis.inBed.rawValue:
-                            request = SleepRequest(stage: .inBed, startDate: sample.startDate, endDate: sample.endDate)
+                            sleepStage = .inBed
                         case HKCategoryValueSleepAnalysis.asleep.rawValue:
-                            request = SleepRequest(stage: .asleep, startDate: sample.startDate, endDate: sample.endDate)
+                            sleepStage = .asleep
                         case HKCategoryValueSleepAnalysis.awake.rawValue:
-                            request = SleepRequest(stage: .awake, startDate: sample.startDate, endDate: sample.endDate)
+                            sleepStage = .awake
                         default:
-                            break
+                            sleepStage = .unknown
                         }
+                        var manuallyEntered: Bool = false
+                        if let wasUserEntered = sample.metadata?["HKWasUserEntered"] as? NSNumber, wasUserEntered.boolValue == true {
+                            manuallyEntered = true
+                        }
+                        request = SleepRequest(stage: sleepStage, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
                         if let request = request {
                             requests.append(request)
                         }
@@ -240,12 +250,12 @@ public class HealthActivity {
         // check if a previous anchor exists
         if let data = UserDefaults.standard.object(forKey: sampleType.identifier) as? Data, let object = try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data) {
             anchor = object
-            compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [sourcePredicate])
+            compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [])
 
         } else {
             let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let timePredicate = HKAnchoredObjectQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictEndDate)
-            compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [timePredicate, sourcePredicate])
+            compoundPredicate = NSCompoundPredicate(type: .and, subpredicates: [timePredicate])
         }
         let query = HKAnchoredObjectQuery(type: sampleType,
                                           predicate: compoundPredicate,
