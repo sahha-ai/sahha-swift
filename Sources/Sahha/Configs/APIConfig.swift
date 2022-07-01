@@ -32,6 +32,7 @@ class ApiEndpoint {
         case demographic = "profile/demographic"
         case analyze = "profile/analyze"
         case sleep = "sleep/log"
+        case movement = "movement/log"
     }
     
     let endpointPath: EndpointPath

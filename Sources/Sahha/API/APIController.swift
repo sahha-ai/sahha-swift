@@ -24,6 +24,10 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.sleep), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
+    static func postMovement(body: [HealthRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.movement), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
     static func postApiError(_ error: ApiErrorModel) {
         
         var body = ErrorModel()
