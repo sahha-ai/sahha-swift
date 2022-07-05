@@ -5,9 +5,6 @@ import HealthKit
 
 public class HealthActivity {
     
-    private let sleepKey = "sleepActivityDate"
-    private let pedometerKey = "pedometerActivityDate"
-    
     internal private(set) var activityStatus: SahhaSensorStatus = .pending
     
     private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
@@ -18,8 +15,25 @@ public class HealthActivity {
     
     internal init() {
         print("Sahha | Health init")
-        //UserDefaults.standard.removeObject(forKey: sleepKey)
-        //UserDefaults.standard.removeObject(forKey: pedometerKey)
+        if let value = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            //clearDate(value.identifier)
+        }
+        if let value = HKObjectType.quantityType(forIdentifier: .stepCount) {
+            //clearDate(value.identifier)
+        }
+    }
+    
+    private func clearDate(_ identifier: String) {
+        print("Sahha | Clear date", identifier)
+        UserDefaults.standard.removeObject(forKey: identifier + "Start")
+        UserDefaults.standard.removeObject(forKey: identifier)
+    }
+    
+    private func setDate(_ identifier: String, date: Date) {
+        print("Sahha | Set date", identifier, date.toTimezoneFormat)
+        let startDate = UserDefaults.standard.date(forKey: identifier) ?? Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        UserDefaults.standard.set(date: startDate, forKey: identifier + "Start")
+        UserDefaults.standard.set(date: date, forKey: identifier)
     }
     
     internal func configure(sensors: Set<SahhaSensor>) {
@@ -124,17 +138,17 @@ public class HealthActivity {
         
         switch sensor {
         case .sleep:
-            checkSleepHistory() { [weak self] identifier, anchor, data in
+            checkSleepHistory() { [weak self] identifier, date, data in
                 if data.isEmpty == false {
-                    self?.postSleepRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
+                    self?.postSleepRange(data: data, identifier: identifier, date: date, callback: callback)
                 } else {
                     callback?("Sahha | No new Health sleep activity since last post", false)
                 }
             }
         case .pedometer:
-            checkQuantityHistory(typeId: .stepCount) { [weak self] identifier, anchor, data in
+            checkQuantityHistory(typeId: .stepCount) { [weak self] identifier, date, data in
                 if data.isEmpty == false {
-                    self?.postPedometerRange(data: data, identifier: identifier, anchor: anchor, callback: callback)
+                    self?.postPedometerRange(data: data, identifier: identifier, date: date, callback: callback)
                 } else {
                     callback?("Sahha | No new Health pedometer activity since last post", false)
                 }
@@ -156,25 +170,40 @@ public class HealthActivity {
         
         print("Sahha | Health background delivery ready")
         
-        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            enableBackgroundDelivery(healthType: sleepType, sensor: .sleep)
+        
+        if let sampleType = HKSampleType.categoryType(forIdentifier: .sleepAnalysis) {
+            enableBackgroundDelivery(sampleType: sampleType, sensor: .sleep)
         }
-        if let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) {
-            enableBackgroundDelivery(healthType: stepType, sensor: .pedometer)
+        if let sampleType = HKSampleType.quantityType(forIdentifier: .stepCount) {
+            enableBackgroundDelivery(sampleType: sampleType, sensor: .pedometer)
         }
     }
     
-    private func enableBackgroundDelivery(healthType: HKObjectType, sensor: SahhaSensor) {
-        store.enableBackgroundDelivery(for: healthType, frequency: HKUpdateFrequency.hourly) { [weak self] success, error in
-            print("Sahha | Health background delivery triggered for \(sensor.rawValue)")
+    private func enableBackgroundDelivery(sampleType: HKSampleType, sensor: SahhaSensor) {
+        store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.hourly) { [weak self] success, error in
+            print("Sahha | Health background delivery enabled for \(sensor.rawValue)")
             if let error = error {
                 print(error.localizedDescription)
                 return
             }
             switch success {
             case true:
-                if Sahha.settings.postSensorDataManually == false {
-                    self?.postSensorData(sensor)
+                let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
+                    print("Sahha | Health background delivery received for \(sensor.rawValue)")
+                    if let _ = errorOrNil {
+                        completionHandler()
+                        return
+                    }
+                    if Sahha.settings.postSensorDataManually == false {
+                        self?.postSensorData(sensor, callback: { error, success in
+                            completionHandler()
+                        })
+                    } else {
+                        completionHandler()
+                    }
+                }
+                if let store = self?.store {
+                    store.execute(query)
                 }
                 return
             case false:
@@ -183,37 +212,43 @@ public class HealthActivity {
         }
     }
     
-    private func checkQuantityHistory(typeId: HKQuantityTypeIdentifier, callback: @escaping (String, HKQueryAnchor, [HealthRequest])->Void) {
+    private func checkQuantityHistory(typeId: HKQuantityTypeIdentifier, callback: @escaping (String, Date, [HealthRequest])->Void) {
         if let sampleType = HKObjectType.quantityType(forIdentifier: typeId) {
-            checkHistory(sampleType: sampleType) { anchor, data in
+            let startDate = UserDefaults.standard.date(forKey: sampleType.identifier) ?? Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            let endDate = Date()
+            getHistory(sampleType: sampleType, startDate: startDate, endDate: endDate) { error, data in
                 if let samples = data as? [HKQuantitySample] {
                     var healthSamples: [HealthRequest] = []
                     var unit: HKUnit
+                    var dataType: String
                     switch typeId {
                     case .stepCount:
                         unit = HKUnit.count()
+                        dataType = "StepCount"
                     default:
                         unit = HKUnit.count()
+                        dataType = typeId.rawValue
                     }
+                    print("Healthy", dataType)
                     for sample in samples {
                         var manuallyEntered: Bool = false
                         if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
                             manuallyEntered = true
                         }
-                        let healthSample = HealthRequest(dataType: typeId.rawValue, count: sample.quantity.doubleValue(for: unit), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+                        let healthSample = HealthRequest(dataType: dataType, count: sample.quantity.doubleValue(for: unit), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
                         healthSamples.append(healthSample)
                     }
-                    if healthSamples.isEmpty == false {
-                        callback(sampleType.identifier, anchor, healthSamples)
-                    }
+                    callback(sampleType.identifier, endDate, healthSamples)
                 }
             }
         }
     }
     
-    private func checkSleepHistory(callback: @escaping (String, HKQueryAnchor, [SleepRequest])->Void) {
+    private func checkSleepHistory(callback: @escaping (String, Date, [SleepRequest])->Void) {
         if let sampleType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            checkHistory(sampleType: sampleType) { anchor, data in
+            let startDate = UserDefaults.standard.date(forKey: sampleType.identifier) ?? Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            let endDate = Date()
+            getHistory(sampleType: sampleType, startDate: startDate, endDate: endDate) { error, data in
                 if let samples = data as? [HKCategorySample] {
                     var requests: [SleepRequest] = []
                     for sample in samples {
@@ -238,59 +273,45 @@ public class HealthActivity {
                             requests.append(request)
                         }
                     }
-                    callback(sampleType.identifier, anchor, requests)
+                    callback(sampleType.identifier, endDate, requests)
                 }
             }
         }
     }
     
-    private func checkHistory(sampleType: HKSampleType, callback: @escaping (HKQueryAnchor, [HKSample])->Void) {
-        
-        var anchor: HKQueryAnchor?
-        var predicate: NSPredicate?
-        // check if a previous anchor exists
-        if let data = UserDefaults.standard.object(forKey: sampleType.identifier) as? Data, let object = try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data) {
-            anchor = object
-        } else {
-            let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            predicate = HKAnchoredObjectQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictEndDate)
-        }
-        let query = HKAnchoredObjectQuery(type: sampleType,
-                                          predicate: predicate,
-                                          anchor: anchor,
-                                          limit: HKObjectQueryNoLimit) { (query, samplesOrNil, deletedObjectsOrNil, newAnchor, errorOrNil) in
-            guard let samples = samplesOrNil, samples.isEmpty == false, let _ = deletedObjectsOrNil, let callbackAnchor = newAnchor else {
-                print(sampleType.identifier)
-                if let error = errorOrNil {
-                    print(error.localizedDescription)
-                }
+    private func getHistory(sampleType: HKSampleType, startDate: Date, endDate: Date, callback: @escaping (String?, [HKSample])->Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: HKQueryOptions.strictEndDate)
+        let sortByDate = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortByDate]) { query, samples, error in
+            print("Sahha | Get history", sampleType.identifier, startDate.toTimezoneFormat, endDate.toTimezoneFormat, samples?.count ?? 0)
+            if let error = error {
+                callback(error.localizedDescription, [])
                 return
             }
-            callback(callbackAnchor, samples)
+            guard let samples = samples else {
+                callback("No sensor data found", [])
+                return
+            }
+            callback(nil, samples)
+            return
         }
-        
         store.execute(query)
     }
     
-    private func postSleepRange(data: [SleepRequest], identifier: String, anchor: HKQueryAnchor, callback: ((_ error: String?, _ success: Bool)-> Void)? = nil) {
+    private func postSleepRange(data: [SleepRequest], identifier: String, date: Date, callback: ((_ error: String?, _ success: Bool)-> Void)? = nil) {
         if data.count > 1000 {
             // Split elements and post
             let newData = Array(data.prefix(1000))
-            postSleepRange(data: newData, identifier: identifier, anchor: anchor)
+            postSleepRange(data: newData, identifier: identifier, date: date)
             // Remove elements and recurse
             let oldData = Array(data[newData.count..<data.count])
-            postSleepRange(data: oldData, identifier: identifier, anchor: anchor, callback: callback)
+            postSleepRange(data: oldData, identifier: identifier, date: date, callback: callback)
         } else {
+            //setDate(identifier, date: date)
             APIController.postSleep(body: data) { [weak self] result in
                 switch result {
                 case .success(_):
-                    // Save anchor
-                    if let data: Data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: false) {
-                        UserDefaults.standard.set(data, forKey: identifier)
-                        if let key = self?.sleepKey {
-                            UserDefaults.standard.set(date: Date(), forKey: key)
-                        }
-                    }
+                    self?.setDate(identifier, date: date)
                     callback?(nil, true)
                 case .failure(let error):
                     print(error.localizedDescription)
@@ -300,25 +321,20 @@ public class HealthActivity {
         }
     }
     
-    private func postPedometerRange(data: [HealthRequest], identifier: String, anchor: HKQueryAnchor, callback: ((_ error: String?, _ success: Bool)-> Void)? = nil) {
+    private func postPedometerRange(data: [HealthRequest], identifier: String, date: Date, callback: ((_ error: String?, _ success: Bool)-> Void)? = nil) {
         if data.count > 1000 {
             // Split elements and post
             let newData = Array(data.prefix(1000))
-            postPedometerRange(data: newData, identifier: identifier, anchor: anchor)
+            postPedometerRange(data: newData, identifier: identifier, date: date)
             // Remove elements and recurse
             let oldData = Array(data[newData.count..<data.count])
-            postPedometerRange(data: oldData, identifier: identifier, anchor: anchor, callback: callback)
+            postPedometerRange(data: oldData, identifier: identifier, date: date, callback: callback)
         } else {
+            //setDate(identifier, date: date)
             APIController.postMovement(body: data) { [weak self] result in
                 switch result {
                 case .success(_):
-                    // Save anchor
-                    if let data: Data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: false) {
-                        UserDefaults.standard.set(data, forKey: identifier)
-                        if let key = self?.pedometerKey {
-                            UserDefaults.standard.set(date: Date(), forKey: key)
-                        }
-                    }
+                    self?.setDate(identifier, date: date)
                     callback?(nil, true)
                 case .failure(let error):
                     print(error.localizedDescription)
