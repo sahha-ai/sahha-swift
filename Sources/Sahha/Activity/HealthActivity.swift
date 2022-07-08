@@ -16,9 +16,6 @@ public class HealthActivity {
     internal init() {
         print("Sahha | Health init")
         //clearAllData()
-        for sensor in activitySensors {
-            sensorStatus[sensor] = .pending
-        }
     }
     
     private func clearAllData() {
