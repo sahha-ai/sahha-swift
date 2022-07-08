@@ -15,11 +15,18 @@ public class HealthActivity {
     
     internal init() {
         print("Sahha | Health init")
+        //clearAllData()
+        for sensor in activitySensors {
+            sensorStatus[sensor] = .pending
+        }
+    }
+    
+    private func clearAllData() {
         if let value = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            //clearDate(value.identifier)
+            clearDate(value.identifier)
         }
         if let value = HKObjectType.quantityType(forIdentifier: .stepCount) {
-            //clearDate(value.identifier)
+            clearDate(value.identifier)
         }
     }
     
@@ -229,7 +236,6 @@ public class HealthActivity {
                         unit = HKUnit.count()
                         dataType = typeId.rawValue
                     }
-                    print("Healthy", dataType)
                     for sample in samples {
                         var manuallyEntered: Bool = false
                         if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
