@@ -224,21 +224,18 @@ public class HealthActivity {
                 if let samples = data as? [HKQuantitySample] {
                     var healthSamples: [HealthRequest] = []
                     var unit: HKUnit
-                    var dataType: String
                     switch typeId {
                     case .stepCount:
                         unit = HKUnit.count()
-                        dataType = "StepCount"
                     default:
                         unit = HKUnit.count()
-                        dataType = typeId.rawValue
                     }
                     for sample in samples {
                         var manuallyEntered: Bool = false
                         if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
                             manuallyEntered = true
                         }
-                        let healthSample = HealthRequest(dataType: dataType, count: sample.quantity.doubleValue(for: unit), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+                        let healthSample = HealthRequest(dataType: typeId.rawValue, count: sample.quantity.doubleValue(for: unit), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
                         healthSamples.append(healthSample)
                     }
                     callback(sampleType.identifier, endDate, healthSamples)
