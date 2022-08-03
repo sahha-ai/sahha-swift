@@ -130,45 +130,23 @@ public class Sahha {
     
     // MARK: - Sensors
     
-    public static func getSensorStatus(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
-        switch sensor {
-        case .sleep, .pedometer:
-            callback(health.activityStatus)
-        case .device:
-            callback(.pending)
+    public static func getSensorStatus(callback: @escaping (SahhaSensorStatus)->Void) {
+        callback(health.activityStatus)
+    }
+    
+    public static func enableSensors(callback: @escaping (SahhaSensorStatus)->Void) {
+        health.activate { newStatus in
+            callback(newStatus)
         }
     }
     
-    public static func enableSensor(_ sensor: SahhaSensor, callback: @escaping (SahhaSensorStatus)->Void) {
-
-        switch sensor {
-        case .sleep, .pedometer:
-            health.activate { newStatus in
-                callback(newStatus)
-            }
-        case .device:
-            callback(.pending)
-        }
-    }
-    
-    public static func postSensorData(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, Bool) -> Void) {
-        
-        var sensorList: Set<SahhaSensor>
-        if let sensors = sensors {
-            sensorList = sensors
-        } else {
-            // If list is nil, add all possible sensors
-            sensorList = []
-            for sensor in SahhaSensor.allCases {
-                sensorList.insert(sensor)
-            }
-        }
+    public static func postSensorData(callback: @escaping (String?, Bool) -> Void) {
         
         // Save callback
         postSensorDataCallback = callback
 
         // Add tasks
-        for sensor in sensorList {
+        for sensor in settings.sensors {
             switch sensor {
             case .sleep:
                 if sensorDataTasks.contains(.sleep) == false {
