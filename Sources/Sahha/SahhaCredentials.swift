@@ -8,6 +8,13 @@ class SahhaCredentials {
     static var profileToken: String?
     static var refreshToken: String?
     
+    static var isAuthenticated: Bool {
+        if let _ = profileToken, let _ = refreshToken {
+            return true
+        }
+        return false
+    }
+    
     static func getCredentials() {
         if let profileToken = getProfileToken(), let refreshToken = getRefreshToken() {
             self.profileToken = profileToken
