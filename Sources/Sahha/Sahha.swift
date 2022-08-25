@@ -62,13 +62,13 @@ public class Sahha {
         print("Sahha | SDK init")
     }
 
-    public static func configure(_ settings: SahhaSettings
-    ) {
+    public static func configure(_ settings: SahhaSettings, callback: (() -> Void)? = nil) {
+        
         Self.settings = settings
                 
         SahhaCredentials.getCredentials()
                 
-        health.configure(sensors: settings.sensors)
+        health.configure(sensors: settings.sensors, callback: callback)
         
         motion.configure(sensors: settings.sensors)
         

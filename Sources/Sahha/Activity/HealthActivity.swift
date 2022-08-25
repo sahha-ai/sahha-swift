@@ -12,6 +12,7 @@ public class HealthActivity {
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
     private var sampleTypes: Set<HKObjectType> = []
+    private var configureCallback: (() -> Void)?
     
     internal init() {
         print("Sahha | Health init")
@@ -40,7 +41,8 @@ public class HealthActivity {
         UserDefaults.standard.set(date: date, forKey: identifier)
     }
     
-    internal func configure(sensors: Set<SahhaSensor>) {
+    internal func configure(sensors: Set<SahhaSensor>, callback: (() -> Void)? = nil) {
+        configureCallback = callback
         enabledSensors = activitySensors.intersection(sensors)
         sampleTypes = []
         if enabledSensors.contains(.sleep) {
@@ -57,7 +59,8 @@ public class HealthActivity {
     }
     
     @objc private func onAppOpen() {
-        checkAuthorization { _ in
+        checkAuthorization { [weak self] _ in
+            self?.configureCallback?()
         }
     }
     
