@@ -94,6 +94,10 @@ public class Sahha {
     
     // MARK: - Authentication
     
+    public static var isAuthenticated: Bool {
+        return SahhaCredentials.isAuthenticated
+    }
+    
     @discardableResult public static func authenticate(profileToken: String, refreshToken: String) -> Bool {
         return SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken)
     }
