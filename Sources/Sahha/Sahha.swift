@@ -26,6 +26,13 @@ public struct SahhaSettings {
     }
 }
 
+private enum SahhaStorage: String {
+    case timezone
+    case sdkVersion
+    case appVersion
+    case systemVersion
+}
+
 public class Sahha {
     internal static var settings = SahhaSettings(environment: .development)
     private static var health = HealthActivity()
@@ -87,6 +94,19 @@ public class Sahha {
     }
     
     @objc static private func onAppOpen() {
+        let defaults = UserDefaults.standard
+        let currentTimezone = Date().toUTCOffsetFormat
+        let timezone = defaults.string(forKey: SahhaStorage.timezone.rawValue) ?? ""
+        let sdkVersion = defaults.string(forKey: SahhaStorage.sdkVersion.rawValue) ?? ""
+        let appVersion = defaults.string(forKey: SahhaStorage.appVersion.rawValue) ?? ""
+        let systemVersion = defaults.string(forKey: SahhaStorage.systemVersion.rawValue) ?? ""
+        if timezone != currentTimezone || sdkVersion != SahhaConfig.sdkVersion || appVersion != SahhaConfig.appVersion || systemVersion != SahhaConfig.systemVersion {
+            defaults.set(currentTimezone, forKey: SahhaStorage.timezone.rawValue)
+            defaults.set(SahhaConfig.sdkVersion, forKey: SahhaStorage.sdkVersion.rawValue)
+            defaults.set(SahhaConfig.appVersion, forKey: SahhaStorage.appVersion.rawValue)
+            defaults.set(SahhaConfig.systemVersion, forKey: SahhaStorage.systemVersion.rawValue)
+            putDeviceInfo { _, _ in }
+        }
     }
     
     @objc static private func onAppClose() {
@@ -104,6 +124,21 @@ public class Sahha {
     
     public static func deauthenticate() {
         SahhaCredentials.deleteCredentials()
+    }
+    
+    // MARK: - Device Info
+    
+    private static func putDeviceInfo(callback: @escaping (String?, Bool) -> Void) {
+        let body = ErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: Date().toUTCOffsetFormat)
+        APIController.putDeviceInfo(body: body) { result in
+            switch result {
+            case .success(_):
+                callback(nil, true)
+            case .failure(let error):
+                print(error.message)
+                callback(error.message, false)
+            }
+        }
     }
   
     // MARK: - Demographic

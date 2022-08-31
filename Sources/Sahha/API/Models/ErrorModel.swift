@@ -1,4 +1,4 @@
-// 
+// Copyright © 2022 Sahha. All rights reserved.
 
 import Foundation
 
@@ -47,6 +47,7 @@ struct ErrorModel: Encodable
     var apiBody: String?
     var appMethod: String?
     var appBody: String?
+    var timeZone: String?
 }
 
 struct ApiErrorModel: Encodable

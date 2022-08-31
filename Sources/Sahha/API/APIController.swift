@@ -8,6 +8,10 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.refreshToken), .post, encodable: body, decodable: TokenResponse.self, onComplete: onComplete)
     }
     
+    static func putDeviceInfo(body: ErrorModel, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.deviceInfo), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
     static func getDemographic(_ onComplete: @escaping (Result<SahhaDemographic, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.demographic), .get, decodable: SahhaDemographic.self, onComplete: onComplete)
     }

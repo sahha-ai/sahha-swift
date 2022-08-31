@@ -31,6 +31,11 @@ public extension Date {
         dateFormatter.setLocalizedDateFormatFromTemplate("dd/MM/yyyy")
         return dateFormatter.string(from: self)
     }
+    var toUTCOffsetFormat: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "ZZZZZ"
+        return dateFormatter.string(from: self)
+    }
 }
 
 // MARK: Calendar
