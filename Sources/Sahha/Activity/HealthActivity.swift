@@ -61,6 +61,7 @@ public class HealthActivity {
     @objc private func onAppOpen() {
         checkAuthorization { [weak self] _ in
             self?.configureCallback?()
+            self?.configureCallback = nil
         }
     }
     
