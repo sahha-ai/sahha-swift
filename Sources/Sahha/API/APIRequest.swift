@@ -20,6 +20,7 @@ class APIRequest {
                 }
                 return
             }
+
             execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
         }
     }
@@ -68,17 +69,7 @@ class APIRequest {
                 return
             }
         }
-        
-        // Don't fetch the same task at the same time
-        if ApiEndpoint.activeTasks.contains(endpoint.path) {
-            print("Sahha | Aborting duplicated", method.rawValue, endpoint.relativePath)
-            return
-        }
-        
-        ApiEndpoint.activeTasks.append(endpoint.path)
-        
-        print("Sahha | Trying", method.rawValue, url.relativeString)
-        
+                
         switch method {
         case .post, .put, .patch:
             if let body = body {
@@ -97,10 +88,6 @@ class APIRequest {
         }
         
         URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
-            
-            ApiEndpoint.activeTasks.removeAll {
-                $0 == endpoint.path
-            }
             
             if let error = error {
                 print(error.localizedDescription)

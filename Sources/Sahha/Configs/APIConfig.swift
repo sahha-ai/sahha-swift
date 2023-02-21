@@ -39,7 +39,6 @@ class ApiEndpoint {
     let endpointPath: EndpointPath
     let relativePath: String
     let path: String
-    static var activeTasks: [String] = []
     
     var isAuthRequired: Bool {
         switch endpointPath {
