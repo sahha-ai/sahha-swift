@@ -37,33 +37,6 @@ public class Sahha {
     internal static var settings = SahhaSettings(environment: .development)
     private static var health = HealthActivity()
     
-    private static var sensorDataTasks: Set<SahhaSensor> = [] {
-        didSet {
-            if sensorDataTasks.count == 0, sensorDataInfo.count > 0 {
-                var errorString: String?
-                var success: Bool = true
-                for item in sensorDataInfo {
-                    if let error = item.value.error {
-                        if let previousError = errorString {
-                            errorString = previousError + " | " + error
-                        } else {
-                            errorString = error
-                        }
-                    }
-                    if item.value.success == false {
-                        success = false
-                    }
-                }
-                postSensorDataCallback?(errorString, success)
-                postSensorDataCallback = nil
-                sensorDataInfo.removeAll()
-                sensorDataTasks.removeAll()
-            }
-        }
-    }
-    private static var sensorDataInfo: [SahhaSensor:(error: String?, success: Bool)] = [:]
-    private static var postSensorDataCallback: ((String?, Bool) -> Void)? = nil
-    
     private init() {
         print("Sahha | SDK init")
     }
@@ -73,22 +46,14 @@ public class Sahha {
         Self.settings = settings
                 
         SahhaCredentials.getCredentials()
-                
-        health.configure(sensors: settings.sensors, callback: callback)
-        
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+                                
+        health.configure(sensors: settings.sensors, callback: callback)
         
         print("Sahha | SDK configured")
-    }
-    
-    /// Launch the Sahha SDK immediately after configure
-    public static func launch() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-        }
     }
     
     @objc static private func onAppOpen() {
@@ -178,33 +143,8 @@ public class Sahha {
     }
     
     public static func postSensorData(callback: @escaping (String?, Bool) -> Void) {
-        
-        // Save callback
-        postSensorDataCallback = callback
 
-        // Add tasks
-        for sensor in settings.sensors {
-            switch sensor {
-            case .sleep:
-                if sensorDataTasks.contains(.sleep) == false {
-                    sensorDataTasks.insert(.sleep)
-                    health.postSensorData(.sleep) { error, success in
-                        sensorDataInfo[.sleep] = (error: error, success: success)
-                        sensorDataTasks.remove(.sleep)
-                    }
-                }
-            case .pedometer:
-                if sensorDataTasks.contains(.pedometer) == false {
-                    sensorDataTasks.insert(.pedometer)
-                    health.postSensorData(.pedometer) { error, success in
-                        sensorDataInfo[.pedometer] = (error: error, success: success)
-                        sensorDataTasks.remove(.pedometer)
-                    }
-                }
-            case .device:
-                break
-            }
-        }
+        health.postSensorData(callback: callback)
     }
     
     // MARK: - Analyzation
