@@ -36,7 +36,6 @@ private enum SahhaStorage: String {
 public class Sahha {
     internal static var settings = SahhaSettings(environment: .development)
     private static var health = HealthActivity()
-    private static var motion = MotionActivity()
     
     private static var sensorDataTasks: Set<SahhaSensor> = [] {
         didSet {
@@ -77,7 +76,6 @@ public class Sahha {
                 
         health.configure(sensors: settings.sensors, callback: callback)
         
-        motion.configure(sensors: settings.sensors)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
