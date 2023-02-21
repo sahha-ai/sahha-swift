@@ -107,7 +107,7 @@ class APIRequest {
                 }
                 return
             }
-            print("\(urlResponse.statusCode) : " + url.relativePath)
+            print("Sahha |", url.relativePath, urlResponse.statusCode)
             
             apiError.errorCode = urlResponse.statusCode
             
@@ -120,14 +120,11 @@ class APIRequest {
                     APIController.postRefreshToken(body: RefreshTokenRequest(profileToken: profileToken, refreshToken: refreshToken)) { result in
                         switch result {
                         case .success(let response):
-                            DispatchQueue.main.async {
-                                
-                                // Save new token
-                                SahhaCredentials.setCredentials(profileToken: response.profileToken ?? "", refreshToken: response.refreshToken ?? "")
-                                
-                                // Try failed endpoint again
-                                APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
-                            }
+                            // Save new token
+                            SahhaCredentials.setCredentials(profileToken: response.profileToken ?? "", refreshToken: response.refreshToken ?? "")
+                            
+                            // Try failed endpoint again
+                            APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
                         case .failure(let error):
                             print(error.message)
                             DispatchQueue.main.async {
