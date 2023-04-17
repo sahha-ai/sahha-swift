@@ -91,7 +91,7 @@ class SahhaCredentials {
             kSecAttrAccount: account,
             kSecAttrServer: server,
             kSecClass: kSecClassInternetPassword
-        ] as CFDictionary
+        ] as [CFString : Any] as CFDictionary
 
         // Add data in query to keychain
         let status = SecItemAdd(query, nil)
@@ -102,7 +102,7 @@ class SahhaCredentials {
                 kSecAttrAccount: account,
                 kSecAttrServer: server,
                 kSecClass: kSecClassInternetPassword
-            ] as CFDictionary
+            ] as [CFString : Any] as CFDictionary
 
             let queryUpdate = [kSecValueData: data] as CFDictionary
 
