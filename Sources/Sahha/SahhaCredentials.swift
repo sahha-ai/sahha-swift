@@ -42,7 +42,6 @@ class SahhaCredentials {
         ] as [CFString : Any] as CFDictionary
         
         var result: AnyObject?
-        // Look for item
         let status = SecItemCopyMatching(query, &result)
         
         guard status == errSecSuccess else {
