@@ -141,7 +141,7 @@ class SahhaCredentials {
             kSecAttrAccount: account,
             kSecAttrServer: server,
             kSecClass: kSecClassInternetPassword
-        ] as CFDictionary
+        ] as [CFString : Any] as CFDictionary
 
         // Delete query from keychain
         let status = SecItemDelete(query)
