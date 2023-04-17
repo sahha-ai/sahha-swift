@@ -7,9 +7,8 @@ public struct SahhaSettings {
     public let environment: SahhaEnvironment /// development or production
     public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
     public var sensors: Set<SahhaSensor> /// list of
-    public var postSensorDataManually: Bool
     
-    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil, postSensorDataManually: Bool? = nil) {
+    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil) {
         self.environment = environment
         if let sensors = sensors {
             // If list is specified, add only those sensors
@@ -22,18 +21,27 @@ public struct SahhaSettings {
             }
             self.sensors = sensors
         }
-        self.postSensorDataManually = postSensorDataManually ?? false
     }
 }
 
 private enum SahhaStorage: String {
-    case timezone
+    case timeZone
     case sdkVersion
     case appVersion
     case systemVersion
+    
+    var getValue: String {
+        return UserDefaults.standard.string(forKey: self.rawValue) ?? ""
+    }
+    
+    func setValue(_ value: String) {
+        UserDefaults.standard.set(value, forKey: self.rawValue)
+    }
 }
 
 public class Sahha {
+    internal static var appId: String = ""
+    internal static var appSecret: String = ""
     internal static var settings = SahhaSettings(environment: .development)
     private static var health = HealthActivity()
     
@@ -57,19 +65,7 @@ public class Sahha {
     }
     
     @objc static private func onAppOpen() {
-        let defaults = UserDefaults.standard
-        let currentTimezone = Date().toUTCOffsetFormat
-        let timezone = defaults.string(forKey: SahhaStorage.timezone.rawValue) ?? ""
-        let sdkVersion = defaults.string(forKey: SahhaStorage.sdkVersion.rawValue) ?? ""
-        let appVersion = defaults.string(forKey: SahhaStorage.appVersion.rawValue) ?? ""
-        let systemVersion = defaults.string(forKey: SahhaStorage.systemVersion.rawValue) ?? ""
-        if timezone != currentTimezone || sdkVersion != SahhaConfig.sdkVersion || appVersion != SahhaConfig.appVersion || systemVersion != SahhaConfig.systemVersion {
-            defaults.set(currentTimezone, forKey: SahhaStorage.timezone.rawValue)
-            defaults.set(SahhaConfig.sdkVersion, forKey: SahhaStorage.sdkVersion.rawValue)
-            defaults.set(SahhaConfig.appVersion, forKey: SahhaStorage.appVersion.rawValue)
-            defaults.set(SahhaConfig.systemVersion, forKey: SahhaStorage.systemVersion.rawValue)
-            putDeviceInfo { _, _ in }
-        }
+        checkDeviceInfo()
     }
     
     @objc static private func onAppClose() {
@@ -81,8 +77,22 @@ public class Sahha {
         return SahhaCredentials.isAuthenticated
     }
     
-    @discardableResult public static func authenticate(profileToken: String, refreshToken: String) -> Bool {
-        return SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken)
+    public static func authenticate(appId: String, appSecret: String, externalId: String, callback: @escaping (String?, Bool) -> Void) {
+        
+        Self.appId = appId
+        Self.appSecret = appSecret
+        
+        APIController.postProfileToken(body: ProfileTokenRequest(externalId: externalId)) { result in
+            switch result {
+            case .success(let response):
+                SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken)
+                checkDeviceInfo()
+                callback(nil, true)
+            case .failure(let error):
+                print(error.message)
+                callback(error.message, false)
+            }
+        }
     }
     
     public static func deauthenticate() {
@@ -91,8 +101,18 @@ public class Sahha {
     
     // MARK: - Device Info
     
+    private static func checkDeviceInfo() {
+        if SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
+            SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
+            SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
+            SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
+            SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
+            putDeviceInfo { _, _ in }
+        }
+    }
+    
     private static func putDeviceInfo(callback: @escaping (String?, Bool) -> Void) {
-        let body = ErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: Date().toUTCOffsetFormat)
+        let body = ErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
         APIController.putDeviceInfo(body: body) { result in
             switch result {
             case .success(_):

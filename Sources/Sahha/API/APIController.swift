@@ -4,6 +4,10 @@ import Foundation
 
 class APIController {
     
+    static func postProfileToken(body: ProfileTokenRequest, _ onComplete: @escaping (Result<TokenResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.profileToken), .post, encodable: body, decodable: TokenResponse.self, onComplete: onComplete)
+    }
+    
     static func postRefreshToken(body: RefreshTokenRequest, _ onComplete: @escaping (Result<TokenResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.refreshToken), .post, encodable: body, decodable: TokenResponse.self, onComplete: onComplete)
     }
@@ -30,6 +34,14 @@ class APIController {
     
     static func postMovement(body: [HealthRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.movement), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
+    static func postHeart(body: [HealthRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.heart), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
+    static func postBlood(body: [BloodRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.blood), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postApiError(_ error: ApiErrorModel) {

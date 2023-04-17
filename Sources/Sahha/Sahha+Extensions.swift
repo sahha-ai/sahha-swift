@@ -31,10 +31,28 @@ public extension Date {
         dateFormatter.setLocalizedDateFormatFromTemplate("dd/MM/yyyy")
         return dateFormatter.string(from: self)
     }
+    var toYMDFormat: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        return dateFormatter.string(from: self)
+    }
     var toUTCOffsetFormat: String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "ZZZZZ"
         return dateFormatter.string(from: self)
+    }
+}
+
+// MARK: String {
+public extension String {
+    var dateFromYMDFormat: Date {
+        let dateFormatterGet = DateFormatter()
+        dateFormatterGet.dateFormat = "yyyy-MM-dd"
+        if let date = dateFormatterGet.date(from: self) {
+            return date
+        } else {
+            return Date()
+        }
     }
 }
 

@@ -3,10 +3,10 @@
 import Foundation
 
 enum SleepStage: String {
-    case unknown = "unknown"
-    case inBed = "in bed"
-    case asleep = "asleep"
-    case awake = "awake"
+    case unknown = "Unknown"
+    case inBed = "In Bed"
+    case asleep = "Asleep"
+    case awake = "Awake"
 }
 
 struct SleepRequest: Encodable, Hashable {
@@ -16,7 +16,6 @@ struct SleepRequest: Encodable, Hashable {
     var manuallyEntered: Bool
     var startDateTime: String
     var endDateTime: String
-    var createdAt: String
     
     init(stage: SleepStage, source: String, manuallyEntered: Bool, startDate: Date, endDate: Date) {
         self.sleepStage = stage.rawValue
@@ -26,6 +25,5 @@ struct SleepRequest: Encodable, Hashable {
         self.durationInMinutes = difference.minute ?? 0
         self.startDateTime = startDate.toTimezoneFormat
         self.endDateTime = endDate.toTimezoneFormat
-        self.createdAt = Date().toTimezoneFormat
     }
 }

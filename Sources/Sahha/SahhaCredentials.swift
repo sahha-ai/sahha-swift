@@ -39,7 +39,7 @@ class SahhaCredentials {
             kSecAttrServer: server,
             kSecClass: kSecClassInternetPassword,
             kSecReturnData: true
-        ] as CFDictionary
+        ] as [CFString : Any] as CFDictionary
         
         var result: AnyObject?
         // Look for item

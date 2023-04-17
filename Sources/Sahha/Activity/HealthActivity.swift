@@ -8,37 +8,88 @@ public class HealthActivity {
     internal private(set) var activityStatus: SahhaSensorStatus = .pending {
         didSet {
             if activityStatus == .enabled {
-                enableBackgroundDelivery()
+                store.preferredUnits(for: [HKObjectType.quantityType(forIdentifier: .bloodGlucose)!]) { [weak self] unitTypes, error in
+                    if let _ = error {
+                        // do nothing
+                    } else if let unitType = unitTypes.first {
+                        self?.bloodGlucoseUnit = unitType.value
+                    }
+                    self?.enableBackgroundDelivery()
+                }
             }
         }
     }
-    private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer]
-    private var enabledSensors: Set<SahhaSensor> = []
+    private let activitySensors: Set<SahhaSensor> = [.sleep, .pedometer, .heart, .blood]
+    private var enabledHealthTypes: Set<HealthTypeIdentifier> = []
+    private var backgroundHealthTypes: Set<HealthTypeIdentifier> = []
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
     private var maxSampleLimit: Int = 32
-    private var sampleTypes: Set<HKSampleType> = []
-    private var backgroundSampleTypes: Set<HKSampleType> = []
-    private var backgroundSensors: Set<SahhaSensor> = []
+    private var bloodGlucoseUnit: HKUnit = .count()
+    
+    private enum HealthTypeIdentifier: String, CaseIterable {
+        case Sleep
+        case StepCount
+        case HeartRate
+        case RestingHeartRate
+        case HeartRateVariability
+        case BloodPressureSystolic
+        case BloodPressureDiastolic
+        case BloodGlucose
+        
+        var keyName: String {
+            "Sahha".appending(self.rawValue)
+        }
+        
+        var sampleType: HKSampleType {
+            switch self {
+            case .Sleep:
+                return HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            case .StepCount:
+                return HKObjectType.quantityType(forIdentifier: .stepCount)!
+            case .HeartRate:
+                return HKObjectType.quantityType(forIdentifier: .heartRate)!
+            case .RestingHeartRate:
+                return HKObjectType.quantityType(forIdentifier: .restingHeartRate)!
+            case .HeartRateVariability:
+                return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+            case .BloodPressureSystolic:
+                return HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic)!
+            case .BloodPressureDiastolic:
+                return HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+            case .BloodGlucose:
+                return HKObjectType.quantityType(forIdentifier: .bloodGlucose)!
+            }
+        }
+    }
     
     internal init() {
         print("Sahha | Health init")
     }
     
-    private func clearAllData() {
-        for sampleType in sampleTypes {
-            setAnchor(anchor: nil, anchorName: sampleType.identifier)
+    internal func clearAllData() {
+        for healthType in HealthTypeIdentifier.allCases {
+            setAnchor(anchor: nil, healthType: healthType)
         }
     }
     
     internal func configure(sensors: Set<SahhaSensor>, callback: (() -> Void)? = nil) {
-        enabledSensors = activitySensors.intersection(sensors)
-        sampleTypes = []
+        let enabledSensors = activitySensors.intersection(sensors)
         if enabledSensors.contains(.sleep) {
-            sampleTypes.insert(HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!)
+            enabledHealthTypes.insert(.Sleep)
         }
         if enabledSensors.contains(.pedometer) {
-            sampleTypes.insert(HKObjectType.quantityType(forIdentifier: .stepCount)!)
+            enabledHealthTypes.insert(.StepCount)
+        }
+        if enabledSensors.contains(.heart) {
+            enabledHealthTypes.insert(.HeartRate)
+            enabledHealthTypes.insert(.RestingHeartRate)
+            enabledHealthTypes.insert(.HeartRateVariability)
+        }
+        if enabledSensors.contains(.blood) {
+            enabledHealthTypes.insert(.BloodPressureSystolic)
+            enabledHealthTypes.insert(.BloodPressureDiastolic)
+            enabledHealthTypes.insert(.BloodGlucose)
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
@@ -58,25 +109,25 @@ public class HealthActivity {
     @objc private func onAppClose() {
     }
     
-    private func setAnchor(anchor: HKQueryAnchor?, anchorName: String) {
+    private func setAnchor(anchor: HKQueryAnchor?, healthType: HealthTypeIdentifier) {
         guard let anchor = anchor else {
-            UserDefaults.standard.removeObject(forKey: anchorName)
+            UserDefaults.standard.removeObject(forKey: healthType.keyName)
             return
         }
         do {
             let data = try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
-            UserDefaults.standard.set(data, forKey: anchorName)
+            UserDefaults.standard.set(data, forKey: healthType.keyName)
         } catch {
-            print("Sahha | Unable to set health anchor", anchorName)
+            print("Sahha | Unable to set health anchor", healthType.keyName)
         }
     }
 
-    private func getAnchor(anchorName: String) -> HKQueryAnchor? {
-        guard let data = UserDefaults.standard.data(forKey: anchorName) else { return nil }
+    private func getAnchor(healthType: HealthTypeIdentifier) -> HKQueryAnchor? {
+        guard let data = UserDefaults.standard.data(forKey: healthType.keyName) else { return nil }
         do {
             return try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
         } catch {
-            print("Sahha | Unable to get health anchor", anchorName)
+            print("Sahha | Unable to get health anchor", healthType.keyName)
             return nil
         }
     }
@@ -90,7 +141,13 @@ public class HealthActivity {
         }
         
         DispatchQueue.global(qos: .background).async { [weak self] in
-            self?.store.requestAuthorization(toShare: [], read: self?.sampleTypes) { [weak self] success, error in
+            var sampleTypes: Set<HKSampleType> = []
+            if let healthTypes = self?.enabledHealthTypes {
+                for healthType in healthTypes {
+                    sampleTypes.insert(healthType.sampleType)
+                }
+            }
+            self?.store.requestAuthorization(toShare: [], read: sampleTypes) { [weak self] success, error in
                 DispatchQueue.main.async {
                     if let error = error {
                         print(error.localizedDescription)
@@ -109,10 +166,14 @@ public class HealthActivity {
             callback?(activityStatus)
             return
         }
-        guard sampleTypes.isEmpty == false else {
+        guard enabledHealthTypes.isEmpty == false else {
             activityStatus = .pending
             callback?(activityStatus)
             return
+        }
+        var sampleTypes: Set<HKSampleType> = []
+        for healthType in enabledHealthTypes {
+            sampleTypes.insert(healthType.sampleType)
         }
         store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { [weak self] status, error in
             
@@ -143,11 +204,9 @@ public class HealthActivity {
             return
         }
         
-        for sampleType in sampleTypes {
+        for healthId in HealthTypeIdentifier.allCases {
             
-            if backgroundSampleTypes.contains(sampleType) {
-                return
-            }
+            let sampleType = healthId.sampleType
             
             store.getRequestStatusForAuthorization(toShare: [], read: [sampleType]) { [weak self] status, errorOrNil in
                 
@@ -165,7 +224,6 @@ public class HealthActivity {
                         }
                         switch success {
                         case true:
-                            self?.backgroundSampleTypes.insert(sampleType)
                             let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                                 if let error = errorOrNil {
                                     print(error.localizedDescription)
@@ -192,14 +250,14 @@ public class HealthActivity {
     
     internal func postSensorData(callback: @escaping (_ error: String?, _ success: Bool) -> Void) {
         
-        guard backgroundSensors.isEmpty else {
+        guard backgroundHealthTypes.isEmpty else {
             callback("Sahha | Post sensor data task is already in progress", false)
             return
         }
         
         let sensorCallback: (_ error: String?, _ success: Bool) -> Void = { [weak self] error, success in
             // Clean up
-            self?.backgroundSensors.removeAll()
+            self?.backgroundHealthTypes.removeAll()
             
             // Pass to parent callback
             callback(error, success)
@@ -207,40 +265,29 @@ public class HealthActivity {
             return
         }
         
-        backgroundSensors = enabledSensors
+        backgroundHealthTypes = enabledHealthTypes
         
         postNextSensorData(callback: sensorCallback)
     }
     
     private func postNextSensorData(callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
         
-        guard backgroundSensors.isEmpty == false else {
+        guard backgroundHealthTypes.isEmpty == false else {
             print("Sahha | Post sensor data successfully completed")
             callback(nil, true)
             return
         }
         
-        let sensor = backgroundSensors.removeFirst()
-        postSensorData(sensor: sensor, callback: callback)
+        let healthType = backgroundHealthTypes.removeFirst()
+        postSensorData(healthType: healthType, callback: callback)
     }
     
-    private func postSensorData(sensor: SahhaSensor, callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
-        
-        let sampleType: HKSampleType
-        switch sensor {
-        case .sleep:
-            sampleType = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
-        case .pedometer:
-            sampleType = HKSampleType.quantityType(forIdentifier: .stepCount)!
-        default:
-            callback("Sahha | \(sensor.rawValue) sensor is not available", false)
-            return
-        }
+    private func postSensorData(healthType: HealthTypeIdentifier, callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
         
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
-        let anchor = getAnchor(anchorName: sampleType.identifier)
-        let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: maxSampleLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
+        let anchor = getAnchor(healthType: healthType)
+        let query = HKAnchoredObjectQuery(type: healthType.sampleType, predicate: predicate, anchor: anchor, limit: maxSampleLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
             if let error = errorOrNil {
                 print(error.localizedDescription)
                 callback(error.localizedDescription, false)
@@ -251,36 +298,59 @@ public class HealthActivity {
                 return
             }
             
-            switch sensor {
-            case .sleep:
+            switch healthType {
+            case .Sleep:
                 guard let categorySamples = samples as? [HKCategorySample] else {
                     self?.postNextSensorData(callback: callback)
                     return
                 }
                 self?.postSleepRange(samples: categorySamples) { error, success in
                     if success {
-                        self?.setAnchor(anchor: newAnchor, anchorName: sampleType.identifier)
-                        self?.postSensorData(sensor: sensor, callback: callback)
+                        self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                        self?.postSensorData(healthType: healthType, callback: callback)
                     } else {
                         callback(error, success)
                     }
                 }
-            case .pedometer:
+            case .StepCount:
                 guard let quantitySamples = samples as? [HKQuantitySample] else {
                     self?.postNextSensorData(callback: callback)
                     return
                 }
                 self?.postMovementRange(samples: quantitySamples) { error, success in
                     if success {
-                        self?.setAnchor(anchor: newAnchor, anchorName: sampleType.identifier)
-                        self?.postSensorData(sensor: sensor, callback: callback)
+                        self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                        self?.postSensorData(healthType: healthType, callback: callback)
                     } else {
                         callback(error, success)
                     }
                 }
-            default:
-                callback("Sahha | \(sensor.rawValue) sensor is not available", false)
-                return
+            case .HeartRate, .RestingHeartRate, .HeartRateVariability:
+                guard let quantitySamples = samples as? [HKQuantitySample] else {
+                    self?.postNextSensorData(callback: callback)
+                    return
+                }
+                self?.postHeartRange(healthType: healthType, samples: quantitySamples) { error, success in
+                    if success {
+                        self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                        self?.postSensorData(healthType: healthType, callback: callback)
+                    } else {
+                        callback(error, success)
+                    }
+                }
+            case .BloodPressureSystolic, .BloodPressureDiastolic, .BloodGlucose:
+                guard let quantitySamples = samples as? [HKQuantitySample] else {
+                    self?.postNextSensorData(callback: callback)
+                    return
+                }
+                self?.postBloodRange(healthType: healthType, samples: quantitySamples) { error, success in
+                    if success {
+                        self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                        self?.postSensorData(healthType: healthType, callback: callback)
+                    } else {
+                        callback(error, success)
+                    }
+                }
             }
         }
         store.execute(query)
@@ -323,18 +393,104 @@ public class HealthActivity {
     
     private func postMovementRange(samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
 
-        let healthIdentifier: String = HKQuantityTypeIdentifier.stepCount.rawValue
         var healthRequests: [HealthRequest] = []
         for sample in samples {
             var manuallyEntered: Bool = false
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
                 manuallyEntered = true
             }
-            let healthRequest = HealthRequest(dataType: healthIdentifier, count: sample.quantity.doubleValue(for: .count()), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            let healthRequest = HealthRequest(dataType: HealthTypeIdentifier.StepCount.rawValue, count: sample.quantity.doubleValue(for: .count()), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
             healthRequests.append(healthRequest)
         }
         
         APIController.postMovement(body: healthRequests) { result in
+            switch result {
+            case .success(_):
+                callback(nil, true)
+            case .failure(let error):
+                print(error.localizedDescription)
+                callback(error.localizedDescription, false)
+            }
+        }
+    }
+    
+    private func postHeartRange(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+
+        var healthRequests: [HealthRequest] = []
+        for sample in samples {
+            
+            var count: Double
+            switch healthType {
+            case .HeartRate, .RestingHeartRate:
+                count = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
+            case .HeartRateVariability:
+                count = sample.quantity.doubleValue(for: .secondUnit(with: .milli))
+            default:
+                count = sample.quantity.doubleValue(for: .count())
+            }
+            
+            var manuallyEntered: Bool = false
+            if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
+                manuallyEntered = true
+            }
+            
+            let healthRequest = HealthRequest(dataType: healthType.rawValue, count: count, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            healthRequests.append(healthRequest)
+        }
+        APIController.postHeart(body: healthRequests) { result in
+            switch result {
+            case .success(_):
+                callback(nil, true)
+            case .failure(let error):
+                print(error.localizedDescription)
+                callback(error.localizedDescription, false)
+            }
+        }
+    }
+    
+    private func postBloodRange(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+
+        var bloodRequests: [BloodRequest] = []
+        for sample in samples {
+            
+            var count: Double
+            var unit: String?
+            switch healthType {
+            case .BloodPressureSystolic, .BloodPressureDiastolic:
+                count = sample.quantity.doubleValue(for: .millimeterOfMercury())
+            case .BloodGlucose:
+                if bloodGlucoseUnit != .count() {
+                    count = sample.quantity.doubleValue(for: bloodGlucoseUnit)
+                    unit = bloodGlucoseUnit.unitString
+                } else {
+                    callback("Blood Glucose measurement unit incorrect", false)
+                    return
+                }
+            default:
+                count = sample.quantity.doubleValue(for: .count())
+            }
+            
+            var relationToMeal: BloodRelationToMeal?
+            if let metaValue = sample.metadata?[HKMetadataKeyBloodGlucoseMealTime] as? NSNumber, let metaEnumValue = HKBloodGlucoseMealTime(rawValue: metaValue.intValue) {
+                switch metaEnumValue {
+                case .preprandial:
+                    relationToMeal = .beforeMeal
+                case .postprandial:
+                    relationToMeal = .afterMeal
+                default:
+                    relationToMeal = .unknown
+                }
+            }
+            
+            var manuallyEntered: Bool = false
+            if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
+                manuallyEntered = true
+            }
+            
+            let bloodRequest = BloodRequest(dataType: healthType.rawValue, count: count, unit: unit, relationToMeal: relationToMeal, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            bloodRequests.append(bloodRequest)
+        }
+        APIController.postBlood(body: bloodRequests) { result in
             switch result {
             case .success(_):
                 callback(nil, true)

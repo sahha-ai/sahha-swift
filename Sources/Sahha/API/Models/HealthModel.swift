@@ -9,7 +9,6 @@ struct HealthRequest: Encodable {
     var manuallyEntered: Bool
     var startDateTime: String
     var endDateTime: String
-    var createdAt: String
     
     init(dataType: String, count: Double, source: String, manuallyEntered: Bool, startDate: Date, endDate: Date) {
         self.dataType = dataType
@@ -18,7 +17,6 @@ struct HealthRequest: Encodable {
         self.manuallyEntered = manuallyEntered
         self.startDateTime = startDate.toTimezoneFormat
         self.endDateTime = endDate.toTimezoneFormat
-        self.createdAt = Date().toTimezoneFormat
     }
 }
 

@@ -2,14 +2,17 @@
 
 import Foundation
 
+struct ProfileTokenRequest: Encodable {
+    var externalId: String = ""
+}
+
 struct RefreshTokenRequest: Encodable {
-    var profileToken: String = ""
     var refreshToken: String = ""
 }
 
 struct TokenResponse: Decodable {
-    var profileToken: String?
-    var refreshToken: String?
-    var expiresIn: Int?
-    var tokenType: String?
+    var profileToken: String = ""
+    var refreshToken: String = ""
+    var expiresIn: Int = 0
+    var tokenType: String = ""
 }

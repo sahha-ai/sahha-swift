@@ -20,6 +20,8 @@ public enum SahhaSensor: String, CaseIterable {
     case sleep
     case pedometer
     case device
+    case heart
+    case blood
 }
 
 public enum SahhaSensorStatus: Int {
@@ -87,4 +89,6 @@ class SahhaConfig {
     static let system = UIDevice.current.systemName
     
     static let systemVersion = UIDevice.current.systemVersion
+    
+    static var timeZone = Date().toUTCOffsetFormat
 }

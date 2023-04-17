@@ -69,6 +69,11 @@ class APIRequest {
                 return
             }
         }
+        
+        if endpoint.endpointPath == .profileToken {
+            urlRequest.addValue(Sahha.appId, forHTTPHeaderField: "AppId")
+            urlRequest.addValue(Sahha.appSecret, forHTTPHeaderField: "AppSecret")
+        }
                 
         switch method {
         case .post, .put, .patch:
@@ -107,7 +112,7 @@ class APIRequest {
                 }
                 return
             }
-            print("Sahha |", url.relativePath, urlResponse.statusCode)
+            print("Sahha |", method.rawValue.uppercased(), url.relativePath, urlResponse.statusCode)
             
             apiError.errorCode = urlResponse.statusCode
             
@@ -116,12 +121,12 @@ class APIRequest {
                 print("Sahha | Authorization token is expired")
                 
                 // Get a new token
-                if let profileToken = SahhaCredentials.profileToken, let refreshToken = SahhaCredentials.refreshToken {
-                    APIController.postRefreshToken(body: RefreshTokenRequest(profileToken: profileToken, refreshToken: refreshToken)) { result in
+                if let refreshToken = SahhaCredentials.refreshToken {
+                    APIController.postRefreshToken(body: RefreshTokenRequest(refreshToken: refreshToken)) { result in
                         switch result {
                         case .success(let response):
                             // Save new token
-                            SahhaCredentials.setCredentials(profileToken: response.profileToken ?? "", refreshToken: response.refreshToken ?? "")
+                            SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken)
                             
                             // Try failed endpoint again
                             APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
@@ -138,8 +143,14 @@ class APIRequest {
                 
             }
             
-            if urlResponse.statusCode == 204, decodable is DataResponse.Type, let responseData = "{}".data(using: .utf8), let dataResponse = DataResponse(data: responseData) as? D {
-                onComplete(.success(dataResponse))
+            if urlResponse.statusCode == 204 {
+                if decodable is DataResponse.Type, let responseData = "{}".data(using: .utf8), let dataResponse = DataResponse(data: responseData) as? D {
+                    onComplete(.success(dataResponse))
+                } else if decodable is SahhaDemographic.Type, let dataResponse = SahhaDemographic() as? D  {
+                    onComplete(.success(dataResponse))
+                } else if decodable is TokenResponse.Type, let dataResponse = TokenResponse() as? D  {
+                    onComplete(.success(dataResponse))
+                }
                 return
             }
             
