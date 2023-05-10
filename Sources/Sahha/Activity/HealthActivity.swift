@@ -8,13 +8,11 @@ public class HealthActivity {
     internal private(set) var activityStatus: SahhaSensorStatus = .pending {
         didSet {
             if activityStatus == .enabled {
-                store.preferredUnits(for: [HKObjectType.quantityType(forIdentifier: .bloodGlucose)!]) { [weak self] unitTypes, error in
-                    if let _ = error {
-                        // do nothing
-                    } else if let unitType = unitTypes.first {
-                        self?.bloodGlucoseUnit = unitType.value
-                    }
-                    self?.enableBackgroundDelivery()
+                if oldValue != .enabled {
+                    enableBackgroundDelivery()
+                }
+            } else {
+                store.disableAllBackgroundDelivery { _, _ in
                 }
             }
         }
@@ -267,7 +265,15 @@ public class HealthActivity {
         
         backgroundHealthTypes = enabledHealthTypes
         
-        postNextSensorData(callback: sensorCallback)
+        store.preferredUnits(for: [HKObjectType.quantityType(forIdentifier: .bloodGlucose)!]) { [weak self] unitTypes, error in
+            if let _ = error {
+                // do nothing
+            } else if let unitType = unitTypes.first {
+                self?.bloodGlucoseUnit = unitType.value
+            }
+            
+            self?.postNextSensorData(callback: sensorCallback)
+        }
     }
     
     private func postNextSensorData(callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
