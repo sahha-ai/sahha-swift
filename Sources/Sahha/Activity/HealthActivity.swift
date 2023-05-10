@@ -30,6 +30,7 @@ public class HealthActivity {
         case StepCount
         case HeartRate
         case RestingHeartRate
+        case WalkingHeartRateAverage
         case HeartRateVariability
         case BloodPressureSystolic
         case BloodPressureDiastolic
@@ -49,6 +50,8 @@ public class HealthActivity {
                 return HKObjectType.quantityType(forIdentifier: .heartRate)!
             case .RestingHeartRate:
                 return HKObjectType.quantityType(forIdentifier: .restingHeartRate)!
+            case .WalkingHeartRateAverage:
+                return HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage)!
             case .HeartRateVariability:
                 return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
             case .BloodPressureSystolic:
@@ -82,6 +85,7 @@ public class HealthActivity {
         if enabledSensors.contains(.heart) {
             enabledHealthTypes.insert(.HeartRate)
             enabledHealthTypes.insert(.RestingHeartRate)
+            enabledHealthTypes.insert(.WalkingHeartRateAverage)
             enabledHealthTypes.insert(.HeartRateVariability)
         }
         if enabledSensors.contains(.blood) {
@@ -331,7 +335,7 @@ public class HealthActivity {
                         callback(error, success)
                     }
                 }
-            case .HeartRate, .RestingHeartRate, .HeartRateVariability:
+            case .HeartRate, .RestingHeartRate, .WalkingHeartRateAverage, .HeartRateVariability:
                 guard let quantitySamples = samples as? [HKQuantitySample] else {
                     self?.postNextSensorData(callback: callback)
                     return
@@ -427,7 +431,7 @@ public class HealthActivity {
             
             var count: Double
             switch healthType {
-            case .HeartRate, .RestingHeartRate:
+            case .HeartRate, .RestingHeartRate, .WalkingHeartRateAverage:
                 count = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
             case .HeartRateVariability:
                 count = sample.quantity.doubleValue(for: .secondUnit(with: .milli))
