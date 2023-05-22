@@ -102,12 +102,16 @@ public class Sahha {
     // MARK: - Device Info
     
     private static func checkDeviceInfo() {
-        if SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
-            SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
-            SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
-            SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
-            SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
-            putDeviceInfo { _, _ in }
+        if SahhaCredentials.isAuthenticated, SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
+            putDeviceInfo { _, success in
+                if success {
+                    // Save the latest values
+                    SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
+                    SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
+                    SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
+                    SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
+                }
+            }
         }
     }
     
