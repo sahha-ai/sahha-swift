@@ -3,19 +3,19 @@
 import Foundation
 import Security
 
-class SahhaCredentials {
+internal class SahhaCredentials {
 
-    static var profileToken: String?
-    static var refreshToken: String?
+    internal static var profileToken: String?
+    internal static var refreshToken: String?
     
-    static var isAuthenticated: Bool {
-        if let _ = profileToken, let _ = refreshToken {
+    internal static var isAuthenticated: Bool {
+        if profileToken?.isEmpty == false, refreshToken?.isEmpty == false {
             return true
         }
         return false
     }
     
-    static func getCredentials() {
+    internal static func getCredentials() {
         if let profileToken = getProfileToken(), let refreshToken = getRefreshToken() {
             self.profileToken = profileToken
             self.refreshToken = refreshToken
@@ -58,7 +58,7 @@ class SahhaCredentials {
         return nil
     }
     
-    @discardableResult static func setCredentials(profileToken: String, refreshToken: String) -> Bool {
+    @discardableResult internal static func setCredentials(profileToken: String, refreshToken: String) -> Bool {
         setProfileToken(profileToken)
         setRefreshToken(refreshToken)
         guard let _ = self.profileToken, let _ = self.refreshToken else {
@@ -121,7 +121,7 @@ class SahhaCredentials {
         }
     }
     
-    @discardableResult static func deleteCredentials() -> Bool {
+    @discardableResult internal static func deleteCredentials() -> Bool {
         if deleteProfileToken(), deleteRefreshToken() {
             print ("Sahha | Credentials deleted")
             return true
