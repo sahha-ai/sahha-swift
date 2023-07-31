@@ -257,6 +257,11 @@ public class HealthActivity {
             return
         }
         
+        guard SahhaCredentials.isAuthenticated else {
+            callback("Sahha | Post sensor data task is not authenticated - you must set a profile", false)
+            return
+        }
+        
         let sensorCallback: (_ error: String?, _ success: Bool) -> Void = { [weak self] error, success in
             // Clean up
             self?.backgroundHealthTypes.removeAll()
