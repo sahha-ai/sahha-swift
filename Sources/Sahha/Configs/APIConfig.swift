@@ -37,6 +37,7 @@ class ApiEndpoint {
         case movement = "profile/movement/log"
         case heart = "profile/heart/log"
         case blood = "profile/blood/log"
+        case surveyResponse = "Survey/SurveyResponse"
     }
     
     let endpointPath: EndpointPath

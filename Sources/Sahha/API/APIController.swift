@@ -44,6 +44,10 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.blood), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
+    static func postSurvey(body: SahhaSurvey, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.surveyResponse), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    }
+    
     static func postApiError(_ error: ApiErrorModel) {
         
         var body = ErrorModel()

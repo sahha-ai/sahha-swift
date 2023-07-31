@@ -191,6 +191,22 @@ public class Sahha {
         }
     }
     
+    // MARK: - Feedback
+    
+    public static func postSurvey(_ survey: SahhaSurvey, callback: @escaping (String?, Bool) -> Void) {
+        APIController.postSurvey(body: survey) { result in
+            switch result {
+            case .success(_):
+                callback(nil, true)
+            case .failure(let error):
+                print(error.message)
+                callback(error.message, false)
+            }
+        }
+    }
+    
+    // MARK: - Settings
+    
     public static func openAppSettings() {
         DispatchQueue.main.async {
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
