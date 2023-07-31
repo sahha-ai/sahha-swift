@@ -64,6 +64,7 @@ class SahhaCredentials {
         guard let _ = self.profileToken, let _ = self.refreshToken else {
             return false
         }
+        print("Sahha | Credentials set")
         return true
     }
     
@@ -116,25 +117,35 @@ class SahhaCredentials {
             }
             return nil
         } else {
-            print("Sahha | Credentials set")
             return value
         }
     }
     
-    static func deleteCredentials() {
-        deleteProfileToken()
-        deleteRefreshToken()
+    @discardableResult static func deleteCredentials() -> Bool {
+        if deleteProfileToken(), deleteRefreshToken() {
+            print ("Sahha | Credentials deleted")
+            return true
+        }
+        return false
     }
     
-    private static func deleteProfileToken() {
-        self.profileToken = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.profileToken)
+    private static func deleteProfileToken() -> Bool {
+        if delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.profileToken) {
+            self.profileToken = nil
+            return true
+        }
+        return false
     }
     
-    private static func deleteRefreshToken() {
-        self.refreshToken = delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: self.refreshToken)
+    private static func deleteRefreshToken() -> Bool {
+        if delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: self.refreshToken) {
+            self.refreshToken = nil
+            return true
+        }
+        return false
     }
     
-    private static func delete(account: String, server: String, value: String?) -> String? {
+    private static func delete(account: String, server: String, value: String?) -> Bool {
             
         let query = [
             kSecAttrAccount: account,
@@ -147,11 +158,10 @@ class SahhaCredentials {
         
         guard status == errSecSuccess else {
             print ("Sahha | Credentials delete error")
-            print(SecCopyErrorMessageString(status, nil) as String? ?? "error")
-                return value
+            print(SecCopyErrorMessageString(status, nil) as String? ?? "Error")
+                return false
         }
         
-        print ("Sahha | Credentials deleted")
-        return nil
+        return true
     }
 }

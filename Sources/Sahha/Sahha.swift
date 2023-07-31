@@ -95,8 +95,13 @@ public class Sahha {
         }
     }
     
-    public static func deauthenticate() {
-        SahhaCredentials.deleteCredentials()
+    public static func deauthenticate(callback: @escaping (String?, Bool) -> Void) {
+        if SahhaCredentials.deleteCredentials() {
+            health.clearAllData()
+            callback(nil, true)
+            return
+        }
+        callback("Sahha | Deauthenticate method failed", false)
     }
     
     // MARK: - Device Info
