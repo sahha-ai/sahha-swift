@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'Sahha'
-  s.version          = '0.2.5'
+  s.version          = '0.2.6'
   s.summary          = 'Sahha Swift SDK for iOS'
   s.homepage         = 'https://sahha.ai'
   s.license          = { :type => 'MIT', :file => 'LICENSE.md' }
