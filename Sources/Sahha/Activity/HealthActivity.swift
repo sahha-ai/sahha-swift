@@ -377,16 +377,40 @@ public class HealthActivity {
         var sleepRequests: [SleepRequest] = []
         for sample in samples {
             let sleepStage: SleepStage
-            switch sample.value {
-            case HKCategoryValueSleepAnalysis.inBed.rawValue:
-                sleepStage = .inBed
-            case HKCategoryValueSleepAnalysis.asleep.rawValue:
-                sleepStage = .asleep
-            case HKCategoryValueSleepAnalysis.awake.rawValue:
-                sleepStage = .awake
-            default:
-                sleepStage = .unknown
+            
+            if #available(iOS 16.0, *) {
+                switch sample.value {
+                case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                    sleepStage = .inBed
+                case HKCategoryValueSleepAnalysis.awake.rawValue:
+                    sleepStage = .awake
+                case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                    sleepStage = .asleepREM
+                case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
+                    sleepStage = .asleepCore
+                case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                    sleepStage = .asleepDeep
+                case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                    sleepStage = .asleepUnspecified
+                default:
+                    sleepStage = .unknown
+                    break
+                }
             }
+            else {
+                switch sample.value {
+                case HKCategoryValueSleepAnalysis.inBed.rawValue:
+                    sleepStage = .inBed
+                case HKCategoryValueSleepAnalysis.awake.rawValue:
+                    sleepStage = .awake
+                case HKCategoryValueSleepAnalysis.asleep.rawValue:
+                    sleepStage = .asleep
+                default:
+                    sleepStage = .unknown
+                    break
+                }
+            }
+            
             var manuallyEntered: Bool = false
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
                 manuallyEntered = true
