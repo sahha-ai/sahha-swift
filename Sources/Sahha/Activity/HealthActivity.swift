@@ -145,10 +145,7 @@ public class HealthActivity {
         }
         
         DispatchQueue.global(qos: .background).async { [weak self] in
-            var objectTypes: Set<HKObjectType> = [
-                // HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
-                // HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
-            ]
+            var objectTypes: Set<HKObjectType> = []
             if let healthTypes = self?.enabledHealthTypes {
                 for healthType in healthTypes {
                     objectTypes.insert(healthType.sampleType)
@@ -181,10 +178,7 @@ public class HealthActivity {
             callback?("Sahha | Health data types not specified", activityStatus)
             return
         }
-        var objectTypes: Set<HKObjectType> = [
-            HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
-            HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
-        ]
+        var objectTypes: Set<HKObjectType> = []
         for healthType in enabledHealthTypes {
             objectTypes.insert(healthType.sampleType)
         }
