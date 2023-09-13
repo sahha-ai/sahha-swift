@@ -100,6 +100,18 @@ public class Sahha {
         }
     }
     
+    public static func authenticate(profileToken: String, refreshToken: String, callback: @escaping (String?, Bool) -> Void) {
+        
+        if SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken) {
+            checkDeviceInfo()
+            callback(nil, true)
+        } else {
+            let errorMessage: String = "Sahha Credentials could not be set"
+            Sahha.postError(framework: .ios_swift, message: errorMessage, path: "Sahha", method: "authenticate", body: "hidden")
+            callback(errorMessage, false)
+        }
+    }
+    
     public static func deauthenticate(callback: @escaping (String?, Bool) -> Void) {
         if SahhaCredentials.deleteCredentials() {
             health.clearAllData()
