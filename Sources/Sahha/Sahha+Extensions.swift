@@ -51,6 +51,7 @@ public extension String {
         if let date = dateFormatterGet.date(from: self) {
             return date
         } else {
+            Sahha.postError(framework: .ios_swift, message: "String to date conversion failed", path: "Sahha+Extensions_String", method: "dateFromYMDFormat", body: self)
             return Date()
         }
     }

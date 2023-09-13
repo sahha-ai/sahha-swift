@@ -12,7 +12,7 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.refreshToken), .post, encodable: body, decodable: TokenResponse.self, onComplete: onComplete)
     }
     
-    static func putDeviceInfo(body: ErrorModel, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+    static func putDeviceInfo(body: SahhaErrorModel, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.deviceInfo), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
@@ -48,62 +48,44 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.surveyResponse), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func postApiError(_ error: ApiErrorModel) {
-        
-        var body = ErrorModel()
-
-        body.errorSource = "api"
-        body.errorCode = error.errorCode
-        body.errorType = error.errorType
-        body.errorMessage = error.errorMessage
-        body.apiURL = error.apiURL
-        body.apiMethod = error.apiMethod
-        body.apiBody = error.apiBody
-        
-        postError(body)
+    static func postApiError(_ sahhaError: SahhaErrorModel, responseError: SahhaResponseError) {
+        postError(sahhaError.fromResponseError(responseError), source: .api)
     }
     
-    static func postAppError(_ error: AppErrorModel) {
-        
-        var body = ErrorModel()
-
-        body.errorSource = "app"
-        body.appMethod = error.appMethod
-        body.appBody = error.appBody
-        
-        postError(body)
-    }
-    
-    private static func postError(_ error: ErrorModel) {
-        
-        var body = error
+    static func postError(_ sahhaError: SahhaErrorModel, source: SahhaErrorSource) {
                 
-        body.sdkId = Sahha.settings.framework.rawValue
-        body.sdkVersion = SahhaConfig.sdkVersion
-        body.appId = SahhaConfig.appId
-        body.appVersion = SahhaConfig.appVersion
-        body.deviceType = SahhaConfig.deviceType
-        body.deviceModel = SahhaConfig.deviceModel
-        body.system = SahhaConfig.system
-        body.systemVersion = SahhaConfig.systemVersion
+        var error = sahhaError
+        error.errorSource = source.rawValue
+        error.sdkId = Sahha.settings.framework.rawValue
+        error.sdkVersion = SahhaConfig.sdkVersion
+        error.appId = SahhaConfig.appId
+        error.appVersion = SahhaConfig.appVersion
+        error.deviceType = SahhaConfig.deviceType
+        error.deviceModel = SahhaConfig.deviceModel
+        error.system = SahhaConfig.system
+        error.systemVersion = SahhaConfig.systemVersion
+        
+        guard let jsonBody = try? JSONEncoder().encode(error) else {
+            return
+        }
                 
-        guard let url = URL(string: SahhaConfig.apiErrorPath) else {return}
+        guard let url = URL(string: ApiEndpoint(.error).path) else {return}
         
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        guard let profileToken = SahhaCredentials.profileToken, let jsonBody = try? JSONEncoder().encode(body)
-        else {
-            return
+        if let profileToken = SahhaCredentials.profileToken {
+            let authValue = "Profile \(profileToken)"
+            urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
         }
         
-        let authValue = "Profile \(profileToken)"
-        urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
         urlRequest.httpBody = jsonBody
+        
+        print("Sahha | API Error", error.codeMethod?.uppercased() ?? "METHOD", error.codePath ?? "PATH", error.errorCode ?? 0, error.errorLocation ?? "LOCATION", error.errorMessage ?? "MESSAGE")
+        print(error.errorBody ?? "BODY")
         
         URLSession.shared.dataTask(with: urlRequest) { (_, _, _) in
         }.resume()
-        
     }
 }

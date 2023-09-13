@@ -55,15 +55,7 @@ class SahhaConfig {
             return "https://api.sahha.ai/api/v1/"
         case .development:
             return "https://sandbox-api.sahha.ai/api/v1/"
-        }
-    }
-    
-    static var apiErrorPath: String {
-        switch Sahha.settings.environment {
-        case .production:
-            return "https://error-api.sahha.ai/api/v1/error"
-        case .development:
-            return "https://sandbox-error-api.sahha.ai/api/v1/error"
+            //return "https://development-api.sahha.ai/api/v1/"
         }
     }
     

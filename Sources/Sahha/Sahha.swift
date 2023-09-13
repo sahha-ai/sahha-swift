@@ -85,9 +85,14 @@ public class Sahha {
         APIController.postProfileToken(body: ProfileTokenRequest(externalId: externalId)) { result in
             switch result {
             case .success(let response):
-                SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken)
-                checkDeviceInfo()
-                callback(nil, true)
+                if SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken) {
+                    checkDeviceInfo()
+                    callback(nil, true)
+                } else {
+                    let errorMessage: String = "Sahha Credentials could not be set"
+                    Sahha.postError(framework: .ios_swift, message: errorMessage, path: "Sahha", method: "authenticate", body: "hidden")
+                    callback(errorMessage, false)
+                }
             case .failure(let error):
                 print(error.message)
                 callback(error.message, false)
@@ -121,7 +126,7 @@ public class Sahha {
     }
     
     private static func putDeviceInfo(callback: @escaping (String?, Bool) -> Void) {
-        let body = ErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
+        let body = SahhaErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
         APIController.putDeviceInfo(body: body) { result in
             switch result {
             case .success(_):
@@ -161,18 +166,19 @@ public class Sahha {
     
     // MARK: - Sensors
     
-    public static func getSensorStatus(callback: @escaping (SahhaSensorStatus)->Void) {
-        callback(health.activityStatus)
+    public static func getSensorStatus(callback: @escaping (String?, SahhaSensorStatus)->Void) {
+        health.checkAuthorization { error, status in
+            callback(error, status)
+        }
     }
     
-    public static func enableSensors(callback: @escaping (SahhaSensorStatus)->Void) {
-        health.activate { newStatus in
-            callback(newStatus)
+    public static func enableSensors(callback: @escaping (String?, SahhaSensorStatus)->Void) {
+        health.activate { error, status in
+            callback(error, status)
         }
     }
     
     public static func postSensorData(callback: @escaping (String?, Bool) -> Void) {
-
         health.postSensorData(callback: callback)
     }
     
@@ -187,10 +193,10 @@ public class Sahha {
                    let prettyPrintedString = String(data: data, encoding: .utf8) {
                     callback(nil, prettyPrintedString)
                 } else {
+                    Sahha.postError(message: "Analyzation data encoding error", path: "Sahha", method: "analyze", body: "if let object = try? JSONSerialization.jsonObject")
                     callback("Analyzation data encoding error", nil)
                 }
             case .failure(let error):
-                print(error.message)
                 callback(error.message, nil)
             }
         }
@@ -204,7 +210,6 @@ public class Sahha {
             case .success(_):
                 callback(nil, true)
             case .failure(let error):
-                print(error.message)
                 callback(error.message, false)
             }
         }
@@ -217,6 +222,13 @@ public class Sahha {
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
             }
         }
+    }
+    
+    // MARK: - Errors
+    
+    public static func postError(framework: SahhaFramework = .ios_swift, message: String, path: String, method: String, body: String) {
+        let error = SahhaErrorModel(errorLocation: framework.rawValue, errorMessage: message, codePath: path, codeMethod: method, codeBody: body)
+        APIController.postError(error, source: .app)
     }
 }
 

@@ -6,28 +6,25 @@ struct SahhaError: Error {
     var message: String
 }
 
-struct ResponseError: Codable
+enum SahhaErrorSource: String {
+    case app
+    case api
+}
+
+struct SahhaResponseError: Codable
 {
     var title: String
     var statusCode: Int
     var location: String
-    var errors: [ResponseErrorItem]
-    
-    func toString() -> String {
-        guard let data = try? JSONEncoder().encode(self), let string = String(data: data,
-                                                                              encoding: .utf8) else {
-            return ""
-        }
-        return string
-    }
+    var errors: [SahhaResponseErrorItem]
 }
 
-struct ResponseErrorItem: Codable {
+struct SahhaResponseErrorItem: Codable {
     var origin: String
     var errors: [String]
 }
 
-struct ErrorModel: Encodable
+struct SahhaErrorModel: Encodable
 {
     var sdkId: String?
     var sdkVersion: String?
@@ -40,35 +37,23 @@ struct ErrorModel: Encodable
     var systemVersion: String?
     var errorSource: String?
     var errorCode: Int?
-    var errorType: String?
+    var errorLocation: String?
     var errorMessage: String?
-    var apiURL: String?
-    var apiMethod: String?
-    var apiBody: String?
-    var appMethod: String?
-    var appBody: String?
+    var errorBody: String?
+    var codePath: String?
+    var codeMethod: String?
+    var codeBody: String?
     var timeZone: String?
-}
-
-struct ApiErrorModel: Encodable
-{
-    var errorCode: Int?
-    var errorType: String?
-    var errorMessage: String?
-    var apiURL: String?
-    var apiMethod: String?
-    var apiBody: String?
     
-    mutating func fromErrorResponse(_ errorResponse: ResponseError) -> ApiErrorModel {
-        self.errorCode = errorResponse.statusCode
-        self.errorMessage = errorResponse.toString()
-        self.errorType = errorResponse.location
-        return self
+    func fromResponseError(_ responseError: SahhaResponseError) -> SahhaErrorModel {
+        var error = self
+        error.errorCode = responseError.statusCode
+        error.errorLocation = responseError.location
+        error.errorMessage = responseError.title
+        
+        if let jsonData = try? JSONEncoder().encode(responseError), let jsonString = String(data: jsonData, encoding: .utf8) {
+            error.errorBody = jsonString
+        }
+        return error
     }
-}
-
-struct AppErrorModel: Encodable
-{
-    var appMethod: String?
-    var appBody: String?
 }

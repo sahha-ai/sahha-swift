@@ -11,12 +11,12 @@ class APIRequest {
                 body = try JSONEncoder().encode(encodable)
             } catch {
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Request encoding error", statusCode: 0, location: ApiErrorLocation.encoding.rawValue, errors: [])
-                    var apiError = ApiErrorModel()
-                    apiError.apiURL = endpoint.relativePath
-                    apiError.apiMethod = method.rawValue
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Request encoding error", statusCode: 0, location: ApiErrorLocation.encoding.rawValue, errors: [])
+                    var sahhaError = SahhaErrorModel()
+                    sahhaError.codePath = endpoint.relativePath
+                    sahhaError.codeMethod = method.rawValue
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
@@ -34,9 +34,9 @@ class APIRequest {
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
         // Use if an error occurs
-        var apiError = ApiErrorModel()
-        apiError.apiURL = endpoint.relativePath
-        apiError.apiMethod = method.rawValue
+        var sahhaError = SahhaErrorModel()
+        sahhaError.codePath = endpoint.relativePath
+        sahhaError.codeMethod = method.rawValue
         
         do {
             if let jsonData = body, let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] {
@@ -50,7 +50,7 @@ class APIRequest {
                 if let _ = jsonObject["refreshToken"] as? String {
                     jsonBody["refreshToken"] = "******"
                 }
-                apiError.apiBody = jsonBody.description
+                sahhaError.codeBody = jsonBody.description
             }
         } catch {
             print(error.localizedDescription)
@@ -62,9 +62,9 @@ class APIRequest {
                 urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Missing profile token", statusCode: 0, location: ApiErrorLocation.authentication.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Missing profile token", statusCode: 0, location: ApiErrorLocation.authentication.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
@@ -82,9 +82,9 @@ class APIRequest {
             } else {
                 print("Sahha | Aborting missing request body", method.rawValue, endpoint.relativePath)
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Missing request body", statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Missing request body", statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
@@ -97,24 +97,24 @@ class APIRequest {
             if let error = error {
                 print(error.localizedDescription)
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: error.localizedDescription, statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: error.localizedDescription, statusCode: 0, location: ApiErrorLocation.request.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
             
             guard let urlResponse = response as? HTTPURLResponse else {
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Missing response", statusCode: 0, location: ApiErrorLocation.response.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Missing response", statusCode: 0, location: ApiErrorLocation.response.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
             print("Sahha |", method.rawValue.uppercased(), url.relativePath, urlResponse.statusCode)
             
-            apiError.errorCode = urlResponse.statusCode
+            sahhaError.errorCode = urlResponse.statusCode
             
             // Token has expired
             if urlResponse.statusCode == 401 {
@@ -163,9 +163,9 @@ class APIRequest {
             
             guard let jsonData = data else {
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Missing response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.response.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Missing response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.response.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
@@ -175,18 +175,18 @@ class APIRequest {
             
             if urlResponse.statusCode >= 300 {
                 
-                guard let decoded = try? decoder.decode(ResponseError.self, from: jsonData) else {
+                guard let responseError = try? decoder.decode(SahhaResponseError.self, from: jsonData) else {
                     DispatchQueue.main.async {
-                        let errorResponse = ResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
-                        APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                        onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                        let responseError = SahhaResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
+                        APIController.postApiError(sahhaError, responseError: responseError)
+                        onComplete(.failure(SahhaError(message: responseError.title)))
                     }
                     return
                 }
                                 
                 DispatchQueue.main.async {
-                    APIController.postApiError(apiError.fromErrorResponse(decoded))
-                    onComplete(.failure(SahhaError(message: decoded.toString())))
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }
@@ -198,9 +198,9 @@ class APIRequest {
             
             guard let decoded = try? decoder.decode(decodable.self, from: jsonData) else {
                 DispatchQueue.main.async {
-                    let errorResponse = ResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
-                    APIController.postApiError(apiError.fromErrorResponse(errorResponse))
-                    onComplete(.failure(SahhaError(message: errorResponse.toString())))
+                    let responseError = SahhaResponseError(title: "Error decoding response data", statusCode: urlResponse.statusCode, location: ApiErrorLocation.decoding.rawValue, errors: [])
+                    APIController.postApiError(sahhaError, responseError: responseError)
+                    onComplete(.failure(SahhaError(message: responseError.title)))
                 }
                 return
             }

@@ -98,7 +98,7 @@ public class HealthActivity {
                 
         NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
         
-        checkAuthorization() { _ in
+        checkAuthorization() { _, _ in
             print("Sahha | Health configured")
             callback?()
         }
@@ -121,6 +121,7 @@ public class HealthActivity {
             UserDefaults.standard.set(data, forKey: healthType.keyName)
         } catch {
             print("Sahha | Unable to set health anchor", healthType.keyName)
+            Sahha.postError(message: "Unable to set health anchor", path: "HealthActivity", method: "setAnchor", body: healthType.keyName + " | " + anchor.debugDescription)
         }
     }
 
@@ -187,6 +188,7 @@ public class HealthActivity {
                 print("Sahha | Health error")
                 print(error.localizedDescription)
                 self.activityStatus = .pending
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "checkAuthorization", body: "store.getRequestStatusForAuthorization")
             } else {
                 switch status {
                 case .unnecessary:
@@ -196,7 +198,7 @@ public class HealthActivity {
                 }
             }
             print("Sahha | Health activity status : \(self.activityStatus.description)")
-            callback?(self.activityStatus)
+            callback?(nil, self.activityStatus)
         }
     }
     
@@ -214,6 +216,7 @@ public class HealthActivity {
                 
                 if let error = errorOrNil {
                     print(error.localizedDescription)
+                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "store.getRequestStatusForAuthorization")
                     return
                 }
                 
@@ -222,6 +225,7 @@ public class HealthActivity {
                     self?.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] success, error in
                         if let error = error {
                             print(error.localizedDescription)
+                            Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
                             return
                         }
                         switch success {
@@ -229,6 +233,7 @@ public class HealthActivity {
                             let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                                 if let error = errorOrNil {
                                     print(error.localizedDescription)
+                                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "let query = HKObserverQuery")
                                 } else {
                                     self?.postSensorData { _ , _ in }
                                 }
@@ -275,13 +280,13 @@ public class HealthActivity {
         backgroundHealthTypes = enabledHealthTypes
         
         store.preferredUnits(for: [HKObjectType.quantityType(forIdentifier: .bloodGlucose)!]) { [weak self] unitTypes, error in
-            if let _ = error {
-                // do nothing
+            if let error = error {
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "postSensorData", body: "store.preferredUnits")
+                callback("Sahha | Post sensor data task - Glucose Unit Invalid", false)
             } else if let unitType = unitTypes.first {
                 self?.bloodGlucoseUnit = unitType.value
+                self?.postNextSensorData(callback: sensorCallback)
             }
-            
-            self?.postNextSensorData(callback: sensorCallback)
         }
     }
     
@@ -305,6 +310,7 @@ public class HealthActivity {
         let query = HKAnchoredObjectQuery(type: healthType.sampleType, predicate: predicate, anchor: anchor, limit: maxSampleLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
             if let error = errorOrNil {
                 print(error.localizedDescription)
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
                 callback(error.localizedDescription, false)
                 return
             }
@@ -502,6 +508,7 @@ public class HealthActivity {
                     count = sample.quantity.doubleValue(for: bloodGlucoseUnit)
                     unit = bloodGlucoseUnit.unitString
                 } else {
+                    Sahha.postError(message: "Blood Glucose measurement unit incorrect", path: "HealthActivity", method: "postBloodRange", body: "if bloodGlucoseUnit != .count() | \(bloodGlucoseUnit.unitString)")
                     callback("Blood Glucose measurement unit incorrect", false)
                     return
                 }

@@ -28,6 +28,7 @@ struct DataResponse: Decodable {
 
 class ApiEndpoint {
     enum EndpointPath: String {
+        case error = "error"
         case profileToken = "oauth/profile/register/appId"
         case refreshToken = "oauth/profile/refreshToken"
         case deviceInfo = "profile/deviceInformation"
@@ -46,7 +47,7 @@ class ApiEndpoint {
     
     var isAuthRequired: Bool {
         switch endpointPath {
-        case .profileToken, .refreshToken:
+        case .error, .profileToken, .refreshToken:
             return false
         default:
             return true

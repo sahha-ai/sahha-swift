@@ -46,13 +46,16 @@ internal class SahhaCredentials {
         
         guard status == errSecSuccess else {
             print ("Sahha | Credentials get error")
-            print(SecCopyErrorMessageString(status, nil) as String? ?? "error")
+            let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
+            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "guard status == errSecSuccess else")
                 return nil
         }
         if let data = result as? Data, let string = String(data: data, encoding: .utf8) {
             return string
         } else {
             print ("Sahha | Credentials get data error")
+            let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
+            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "if let data = result as? Data, let string = String(data: data, encoding: .utf8)")
         }
         
         return nil
@@ -84,6 +87,7 @@ internal class SahhaCredentials {
         
         guard let data = value.data(using: .utf8) else {
             print("Sahha | Credentials set data error")
+            Sahha.postError(message: "Data invalid", path: "SahhaCredentials", method: "set", body: "guard let data = value.data(using: .utf8) else")
             return nil
         }
         let query = [
@@ -114,6 +118,7 @@ internal class SahhaCredentials {
                 return value
             } else {
                 print("Sahha | Credentials update error")
+                Sahha.postError(message: "Credentials update error", path: "SahhaCredentials", method: "set", body: "if status == errSecSuccess")
             }
             return nil
         } else {
@@ -158,7 +163,9 @@ internal class SahhaCredentials {
         
         guard status == errSecSuccess else {
             print ("Sahha | Credentials delete error")
-            print(SecCopyErrorMessageString(status, nil) as String? ?? "Error")
+            let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
+            print(errorMessage)
+            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "delete", body: "guard status == errSecSuccess else")
                 return false
         }
         
