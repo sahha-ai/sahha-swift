@@ -5,7 +5,7 @@ import HealthKit
 
 public class HealthActivity {
     
-    internal private(set) var activityStatus: SahhaSensorStatus = .pending {
+    private(set) var activityStatus: SahhaSensorStatus = .pending {
         didSet {
             if activityStatus == .enabled {
                 if oldValue != .enabled {
@@ -45,21 +45,21 @@ public class HealthActivity {
             case .Sleep:
                 return HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             case .StepCount:
-                return HKObjectType.quantityType(forIdentifier: .stepCount)!
+                return HKSampleType.quantityType(forIdentifier: .stepCount)!
             case .HeartRate:
-                return HKObjectType.quantityType(forIdentifier: .heartRate)!
+                return HKSampleType.quantityType(forIdentifier: .heartRate)!
             case .RestingHeartRate:
-                return HKObjectType.quantityType(forIdentifier: .restingHeartRate)!
+                return HKSampleType.quantityType(forIdentifier: .restingHeartRate)!
             case .WalkingHeartRateAverage:
-                return HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage)!
+                return HKSampleType.quantityType(forIdentifier: .walkingHeartRateAverage)!
             case .HeartRateVariability:
-                return HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+                return HKSampleType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
             case .BloodPressureSystolic:
-                return HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic)!
+                return HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
             case .BloodPressureDiastolic:
-                return HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+                return HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
             case .BloodGlucose:
-                return HKObjectType.quantityType(forIdentifier: .bloodGlucose)!
+                return HKSampleType.quantityType(forIdentifier: .bloodGlucose)!
             }
         }
     }
@@ -131,54 +131,64 @@ public class HealthActivity {
             return try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
         } catch {
             print("Sahha | Unable to get health anchor", healthType.keyName)
+            Sahha.postError(message: "Unable to get health anchor", path: "HealthActivity", method: "getAnchor", body: healthType.keyName)
             return nil
         }
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func activate(_ callback: @escaping (SahhaSensorStatus)->Void) {
+    public func activate(_ callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
         guard activityStatus == .pending || activityStatus == .disabled else {
-            callback(activityStatus)
+            callback(nil, activityStatus)
             return
         }
         
         DispatchQueue.global(qos: .background).async { [weak self] in
-            var sampleTypes: Set<HKSampleType> = []
+            var objectTypes: Set<HKObjectType> = [
+                // HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
+                // HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
+            ]
             if let healthTypes = self?.enabledHealthTypes {
                 for healthType in healthTypes {
-                    sampleTypes.insert(healthType.sampleType)
+                    objectTypes.insert(healthType.sampleType)
                 }
             }
-            self?.store.requestAuthorization(toShare: [], read: sampleTypes) { [weak self] success, error in
-                DispatchQueue.main.async {
+            self?.store.requestAuthorization(toShare: [], read: objectTypes) { [weak self] success, error in
+                DispatchQueue.main.async { [weak self] in
                     if let error = error {
                         print(error.localizedDescription)
+                        Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "activate", body: "self?.store.requestAuthorization")
+                        callback(error.localizedDescription, self?.activityStatus ?? .pending)
+                    } else {
+                        self?.checkAuthorization({ error, status in
+                            callback(error, status)
+                        })
                     }
-                    self?.checkAuthorization({ newStatus in
-                        callback(newStatus)
-                    })
                 }
             }
         }
     }
     
-    private func checkAuthorization(_ callback: ((SahhaSensorStatus)->Void)? = nil) {
+    internal func checkAuthorization(_ callback: ((String?, SahhaSensorStatus)->Void)? = nil) {
         guard isAvailable else {
             activityStatus = .unavailable
-            callback?(activityStatus)
+            callback?(nil, activityStatus)
             return
         }
         guard enabledHealthTypes.isEmpty == false else {
             activityStatus = .pending
-            callback?(activityStatus)
+            callback?("Sahha | Health data types not specified", activityStatus)
             return
         }
-        var sampleTypes: Set<HKSampleType> = []
+        var objectTypes: Set<HKObjectType> = [
+            HKObjectType.characteristicType(forIdentifier: .biologicalSex)!,
+            HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
+        ]
         for healthType in enabledHealthTypes {
-            sampleTypes.insert(healthType.sampleType)
+            objectTypes.insert(healthType.sampleType)
         }
-        store.getRequestStatusForAuthorization(toShare: [], read: sampleTypes) { [weak self] status, error in
+        store.getRequestStatusForAuthorization(toShare: [], read: objectTypes) { [weak self] status, error in
             
             guard let self = self else {
                 return
