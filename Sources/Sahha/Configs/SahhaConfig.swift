@@ -3,7 +3,7 @@
 import SwiftUI
 
 public enum SahhaEnvironment: String {
-    case development
+    case sandbox
     case production
 }
 
@@ -44,7 +44,7 @@ class SahhaConfig {
         switch Sahha.settings.environment {
         case .production:
             return "f71d21ca-e775-4e37-8f77-27f65e548d17"
-        case .development:
+        case .sandbox:
             return "7af31263-6536-4010-8bd8-3fa49c6089f6"
         }
     }
@@ -53,7 +53,7 @@ class SahhaConfig {
         switch Sahha.settings.environment {
         case .production:
             return "https://api.sahha.ai/api/v1/"
-        case .development:
+        case .sandbox:
             return "https://sandbox-api.sahha.ai/api/v1/"
             //return "https://development-api.sahha.ai/api/v1/"
         }

@@ -4,7 +4,7 @@ import SwiftUI
 import UIKit
 
 public struct SahhaSettings {
-    public let environment: SahhaEnvironment /// development or production
+    public let environment: SahhaEnvironment /// sandbox or production
     public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
     public var sensors: Set<SahhaSensor> /// list of
     
@@ -42,7 +42,7 @@ private enum SahhaStorage: String {
 public class Sahha {
     internal static var appId: String = ""
     internal static var appSecret: String = ""
-    internal static var settings = SahhaSettings(environment: .development)
+    internal static var settings = SahhaSettings(environment: .sandbox)
     private static var health = HealthActivity()
     
     private init() {
