@@ -6,7 +6,6 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'MIT', :file => 'LICENSE.md' }
   s.author           = { 'Sahha' => 'developer@sahha.ai' }
   s.source           = { :git => 'https://github.com/sahha-ai/sahha-swift.git', :tag => s.version.to_s }
-  s.pod_target_xcconfig = { 'GENERATE_INFOPLIST_FILE' => 'YES' }
   s.ios.deployment_target = '12.0'
   s.swift_version = '5.0'
   s.source_files = 'Sources/Sahha/**/*'
