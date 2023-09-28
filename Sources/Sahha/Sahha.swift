@@ -44,10 +44,6 @@ public class Sahha {
     internal static var appSecret: String = ""
     internal static var settings = SahhaSettings(environment: .sandbox)
     private static var health = HealthActivity()
-    
-    private init() {
-        print("Sahha | SDK init")
-    }
 
     public static func configure(_ settings: SahhaSettings, callback: (() -> Void)? = nil) {
         
@@ -62,6 +58,10 @@ public class Sahha {
         health.configure(sensors: settings.sensors, callback: callback)
         
         print("Sahha | SDK configured")
+        
+        if SahhaCredentials.isAuthenticated {
+            print(SahhaCredentials.profileToken!)
+        }
     }
     
     @objc static private func onAppOpen() {
@@ -197,7 +197,7 @@ public class Sahha {
     // MARK: - Analyzation
     
     public static func analyze(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
-        APIController.postAnalyzation(body: AnalyzationRequest(startDate: dates?.startDate, endDate: dates?.endDate)) { result in
+        APIController.getAnalysis(body: AnalysisRequest(startDate: dates?.startDate, endDate: dates?.endDate)) { result in
             switch result {
             case .success(let response):
                 if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
@@ -212,6 +212,16 @@ public class Sahha {
                 callback(error.message, nil)
             }
         }
+    }
+    
+    // MARK: - Insights
+    
+    public static func postInsights() {
+        health.postInsights()
+    }
+    
+    public static func getInsights(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, [SahhaInsight]) -> Void) {
+        health.getInsights(dates: dates, callback: callback)
     }
     
     // MARK: - Feedback

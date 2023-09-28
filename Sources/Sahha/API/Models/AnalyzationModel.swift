@@ -2,7 +2,7 @@
 
 import Foundation
 
-struct AnalyzationRequest: Encodable {
+struct AnalysisRequest: Encodable {
     var startDateTime: String?
     var endDateTime: String?
     
@@ -10,13 +10,4 @@ struct AnalyzationRequest: Encodable {
         self.startDateTime = startDate?.toTimezoneFormat
         self.endDateTime = endDate?.toTimezoneFormat
     }
-}
-
-struct AnalyzationResponse: Codable {
-    var id: String
-    var state: String
-    var subState: String
-    var range: Int
-    var confidence: Double
-    var phenotypes: [String]
 }
