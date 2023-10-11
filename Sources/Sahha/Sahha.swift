@@ -58,10 +58,6 @@ public class Sahha {
         health.configure(sensors: settings.sensors, callback: callback)
         
         print("Sahha | SDK configured")
-        
-        if SahhaCredentials.isAuthenticated {
-            print(SahhaCredentials.profileToken!)
-        }
     }
     
     @objc static private func onAppOpen() {
