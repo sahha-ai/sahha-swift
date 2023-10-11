@@ -676,11 +676,11 @@ public class HealthActivity {
                 }
             }
             
-            var manuallyEntered: Bool = false
+            var recordingMethod: String = "RECORDING_METHOD_UNKNOWN"
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
-                manuallyEntered = true
+                recordingMethod = "RECORDING_METHOD_MANUAL_ENTRY"
             }
-            let sleepRequest = SleepRequest(stage: sleepStage, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            let sleepRequest = SleepRequest(stage: sleepStage, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: recordingMethod, deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
             sleepRequests.append(sleepRequest)
         }
         
@@ -699,11 +699,11 @@ public class HealthActivity {
         
         var healthRequests: [HealthRequest] = []
         for sample in samples {
-            var manuallyEntered: Bool = false
+            var recordingMethod: String = "RECORDING_METHOD_UNKNOWN"
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
-                manuallyEntered = true
+                recordingMethod = "RECORDING_METHOD_MANUAL_ENTRY"
             }
-            let healthRequest = HealthRequest(dataType: HealthTypeIdentifier.StepCount.rawValue, count: sample.quantity.doubleValue(for: .count()), source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            let healthRequest = HealthRequest(dataType: HealthTypeIdentifier.StepCount.rawValue, count: sample.quantity.doubleValue(for: .count()), source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: recordingMethod, deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
             healthRequests.append(healthRequest)
         }
         
@@ -733,12 +733,11 @@ public class HealthActivity {
                 count = sample.quantity.doubleValue(for: .count())
             }
             
-            var manuallyEntered: Bool = false
+            var recordingMethod: String = "RECORDING_METHOD_UNKNOWN"
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
-                manuallyEntered = true
+                recordingMethod = "RECORDING_METHOD_MANUAL_ENTRY"
             }
-            
-            let healthRequest = HealthRequest(dataType: healthType.rawValue, count: count, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            let healthRequest = HealthRequest(dataType: healthType.rawValue, count: count, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: recordingMethod, deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
             healthRequests.append(healthRequest)
         }
         APIController.postHeart(body: healthRequests) { result in
@@ -787,12 +786,11 @@ public class HealthActivity {
                 }
             }
             
-            var manuallyEntered: Bool = false
+            var recordingMethod: String = "RECORDING_METHOD_UNKNOWN"
             if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
-                manuallyEntered = true
+                recordingMethod = "RECORDING_METHOD_MANUAL_ENTRY"
             }
-            
-            let bloodRequest = BloodRequest(dataType: healthType.rawValue, count: count, unit: unit, relationToMeal: relationToMeal, source: sample.sourceRevision.source.bundleIdentifier, manuallyEntered: manuallyEntered, startDate: sample.startDate, endDate: sample.endDate)
+            let bloodRequest = BloodRequest(dataType: healthType.rawValue, count: count, unit: unit, relationToMeal: relationToMeal, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: recordingMethod, deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
             bloodRequests.append(bloodRequest)
         }
         APIController.postBlood(body: bloodRequests) { result in

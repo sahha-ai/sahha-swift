@@ -14,11 +14,12 @@ struct BloodRequest: Encodable {
     var unit: String?
     var relationToMeal: String?
     var source: String
-    var manuallyEntered: Bool
+    var recordingMethod: String
+    var deviceType: String
     var startDateTime: String
     var endDateTime: String
     
-    init(dataType: String, count: Double, unit: String?, relationToMeal: BloodRelationToMeal?, source: String, manuallyEntered: Bool, startDate: Date, endDate: Date) {
+    init(dataType: String, count: Double, unit: String?, relationToMeal: BloodRelationToMeal?, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date) {
         self.dataType = dataType
         self.count = count
         if let string = unit {
@@ -28,7 +29,8 @@ struct BloodRequest: Encodable {
             self.relationToMeal = string
         }
         self.source = source
-        self.manuallyEntered = manuallyEntered
+        self.recordingMethod = recordingMethod
+        self.deviceType = deviceType
         self.startDateTime = startDate.toTimezoneFormat
         self.endDateTime = endDate.toTimezoneFormat
     }

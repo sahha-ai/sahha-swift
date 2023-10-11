@@ -17,14 +17,16 @@ struct SleepRequest: Encodable, Hashable {
     var sleepStage: String
     var durationInMinutes: Int
     var source: String
-    var manuallyEntered: Bool
+    var recordingMethod: String
+    var deviceType: String
     var startDateTime: String
     var endDateTime: String
     
-    init(stage: SleepStage, source: String, manuallyEntered: Bool, startDate: Date, endDate: Date) {
+    init(stage: SleepStage, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date) {
         self.sleepStage = stage.rawValue
         self.source = source
-        self.manuallyEntered = manuallyEntered
+        self.recordingMethod = recordingMethod
+        self.deviceType = deviceType
         let difference = Calendar.current.dateComponents([.minute], from: startDate, to: endDate)
         self.durationInMinutes = difference.minute ?? 0
         self.startDateTime = startDate.toTimezoneFormat
