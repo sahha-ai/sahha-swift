@@ -216,10 +216,6 @@ public class Sahha {
     
     // MARK: - Insights
     
-    public static func postInsights() {
-        health.postInsights()
-    }
-    
     public static func getInsights(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, [SahhaInsight]) -> Void) {
         health.getInsights(dates: dates, callback: callback)
     }
