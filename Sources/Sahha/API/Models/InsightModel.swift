@@ -5,15 +5,23 @@ import Foundation
 public struct SahhaInsight: Codable {
     public var name: String
     public var value: Double
-    public var unit: String?
+    public var unit: String
+    public var startDate: Date
+    public var endDate: Date
+}
+
+public struct SahhaInsightRequest: Codable {
+    public var name: String
+    public var value: Double
+    public var unit: String
     public var startDateTime: String
     public var endDateTime: String
     
-    public init(name: String, value: Double, unit: String?, startDate: Date, endDate: Date) {
-        self.name = name
-        self.value = value
-        self.unit = unit
-        self.startDateTime = startDate.toTimezoneFormat
-        self.endDateTime = endDate.toTimezoneFormat
+    public init(_ insight: SahhaInsight) {
+        self.name = insight.name
+        self.value = insight.value
+        self.unit = insight.unit
+        self.startDateTime = insight.startDate.toTimezoneFormat
+        self.endDateTime = insight.endDate.toTimezoneFormat
     }
 }

@@ -48,7 +48,7 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.surveyResponse), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func postInsight(body: [SahhaInsight], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+    static func postInsight(body: [SahhaInsightRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.insight), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     

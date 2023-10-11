@@ -81,6 +81,7 @@ public class HealthActivity {
         for healthType in HealthTypeIdentifier.allCases {
             setAnchor(anchor: nil, healthType: healthType)
         }
+        setInsightDate(nil)
     }
     
     internal func configure(sensors: Set<SahhaSensor>, callback: (() -> Void)? = nil) {
@@ -399,18 +400,23 @@ public class HealthActivity {
         store.execute(query)
     }
     
-    internal func postInsights() {
+    private func postInsights() {
         
         let today = Date()
         // Set startDate to a week prior if date is nil (first app launch)
         let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -7, to: today) ?? today
+        let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
         // Only check once per day
         if Calendar.current.isDateInToday(startDate) == false, today > startDate {
-            getInsights(dates: (startDate: startDate, endDate: today)) { error, insights in
+            getInsights(dates: (startDate: startDate, endDate: endDate)) { error, insights in
                 if let error = error {
                     print(error)
                 } else if insights.isEmpty == false {
-                    APIController.postInsight(body: insights) { [weak self] result in
+                    var requests: [SahhaInsightRequest] = []
+                    for insight in insights {
+                        requests.append(SahhaInsightRequest(insight))
+                    }
+                    APIController.postInsight(body: requests) { [weak self] result in
                         switch result {
                         case .success(_):
                             print("Sahha | Post insight data successfully completed")
@@ -428,17 +434,16 @@ public class HealthActivity {
     
     internal func getInsights(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, [SahhaInsight]) -> Void) {
         
-        let startDate = dates?.startDate ?? Date()
-        let endDate = dates?.endDate ?? Date()
-        let queryStartDate = Calendar.current.startOfDay(for: startDate)
-        let queryEndDate: Date = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
+        guard insightHealthTypes.isEmpty else {
+            callback("Sahha | Get insight data task is already in progress", [])
+            return
+        }
         
         var interval = DateComponents()
         interval.day = 1
         
         insightHealthTypes = enabledHealthTypes
-        
-        getNextInsight(insights: [], startDate: queryStartDate, endDate: queryEndDate, interval: interval, callback: callback)
+        getNextInsight(insights: [], startDate: dates?.startDate ?? Date(), endDate: dates?.endDate ?? Date(), interval: interval, callback: callback)
     }
     
     private func getNextInsight(insights: [SahhaInsight], startDate: Date, endDate: Date, interval: DateComponents, callback: @escaping (String?, [SahhaInsight]) -> Void) {
@@ -450,7 +455,6 @@ public class HealthActivity {
         }
         
         let healthType = insightHealthTypes.removeFirst()
-        
         switch healthType {
             /* // Coming soon
         case .HeartRateVariability:
@@ -472,11 +476,21 @@ public class HealthActivity {
              */
         case .StepCount:
             getInsightData(healthType: .StepCount, unit: .count(), statisicType: .sum, startDate: startDate, endDate: endDate, interval: interval, options: .cumulativeSum) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
+                if let error = error {
+                    callback(error, [])
+                    return
+                }
+                let moreInsights = insights + newInsights
+                self?.getNextInsight(insights: moreInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
             }
         case .Sleep:
-            getSleepInsightData(insights: insights, startDate: Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate, endDate: endDate, interval: interval) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
+            getSleepInsightData(startDate: startDate, endDate: endDate, interval: interval) { [weak self] error, newInsights in
+                if let error = error {
+                    callback(error, [])
+                    return
+                }
+                let moreInsights = insights + newInsights
+                self?.getNextInsight(insights: moreInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
             }
         default:
             getNextInsight(insights: insights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
@@ -492,8 +506,10 @@ public class HealthActivity {
             return
         }
         
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
-        let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: startDate, intervalComponents: interval)
+        let queryStartDate = Calendar.current.startOfDay(for: startDate)
+        let queryEndDate: Date = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
+        let predicate = HKQuery.predicateForSamples(withStart: queryStartDate, end: queryEndDate)
+        let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: queryStartDate, intervalComponents: interval)
         
         query.initialResultsHandler = {
             _, results, error in
@@ -544,18 +560,23 @@ public class HealthActivity {
         store.execute(query)
     }
     
-    private func getSleepInsightData(insights: [SahhaInsight], startDate: Date, endDate: Date, interval: DateComponents, callback: @escaping (String?, [SahhaInsight]) -> Void) {
+    private func getSleepInsightData(startDate: Date, endDate: Date, interval: DateComponents, callback: @escaping (String?, [SahhaInsight]) -> Void) {
         
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+        let adjustedStartDate = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
+        let newStartDate = Calendar.current.date(bySetting: .hour, value: 18, of: adjustedStartDate) ?? adjustedStartDate
+
+        let newEndDate = Calendar.current.date(bySetting: .hour, value: 18, of: endDate) ?? endDate
+
+        let predicate = HKQuery.predicateForSamples(withStart: newStartDate, end: newEndDate)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
             if let error = error {
                 print(error.localizedDescription)
                 Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getSleepInsightData", body: "")
-                callback(error.localizedDescription, insights)
+                callback(error.localizedDescription, [])
                 return
             }
             guard let samples = samplesOrNil as? [HKCategorySample], samples.isEmpty == false else {
-                callback(nil, insights)
+                callback(nil, [])
                 return
             }
             
@@ -579,11 +600,9 @@ public class HealthActivity {
             }
             
             var sleepInsights: [SahhaInsight] = []
-            let startRollingDate = Calendar.current.date(bySetting: .hour, value: 18, of: startDate) ?? startDate
             let day = 86400.0
-            var rollingInterval = DateInterval(start: startRollingDate, duration: day)
-            let endDate = Calendar.current.date(bySetting: .hour, value: 18, of: endDate) ?? endDate
-            while rollingInterval.end <= endDate {
+            var rollingInterval = DateInterval(start: newStartDate, duration: day)
+            while rollingInterval.end <= newEndDate {
                 var bedDictionary: [String:SahhaInsight] = [:]
                 var sleepDictionary: [String:SahhaInsight] = [:]
                 for sample in samples {
@@ -612,7 +631,7 @@ public class HealthActivity {
                 }
                 rollingInterval = DateInterval(start: rollingInterval.end, duration: day)
             }
-            callback(nil, insights + sleepInsights)
+            callback(nil, sleepInsights)
         }
         store.execute(query)
     }
