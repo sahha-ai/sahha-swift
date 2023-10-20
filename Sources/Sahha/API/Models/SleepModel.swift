@@ -3,14 +3,13 @@
 import Foundation
 
 enum SleepStage: String {
-    case unknown = "Unknown"
-    case inBed = "In Bed"
-    case awake = "Awake"
-    case asleep = "Asleep"
-    case asleepREM = "Asleep REM"
-    case asleepCore = "Asleep Core"
-    case asleepDeep = "Asleep Deep"
-    case asleepUnspecified = "Asleep Unspecified"
+    case unknown = "STAGE_TYPE_UNKNOWN"
+    case inBed = "STAGE_TYPE_IN_BED"
+    case awake = "STAGE_TYPE_AWAKE"
+    case asleepREM = "STAGE_TYPE_SLEEPING_REM"
+    case asleepCore = "STAGE_TYPE_SLEEPING_LIGHT"
+    case asleepDeep = "STAGE_TYPE_SLEEPING_DEEP"
+    case asleepUnspecified = "STAGE_TYPE_SLEEPING"
 }
 
 struct SleepRequest: Encodable, Hashable {

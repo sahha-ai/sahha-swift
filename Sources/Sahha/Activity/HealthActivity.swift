@@ -669,7 +669,7 @@ public class HealthActivity {
                 case HKCategoryValueSleepAnalysis.awake.rawValue:
                     sleepStage = .awake
                 case HKCategoryValueSleepAnalysis.asleep.rawValue:
-                    sleepStage = .asleep
+                    sleepStage = .asleepUnspecified
                 default:
                     sleepStage = .unknown
                     break
