@@ -18,10 +18,13 @@ public enum SahhaFramework: String {
 
 public enum SahhaSensor: String, CaseIterable {
     case sleep
-    case pedometer
+    case activity
     case device
     case heart
     case blood
+    case oxygen
+    case energy
+    case body
 }
 
 public enum SahhaSensorStatus: Int {

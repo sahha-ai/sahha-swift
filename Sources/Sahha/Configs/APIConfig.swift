@@ -36,9 +36,13 @@ class ApiEndpoint {
         case analysis = "profile/analysis"
         case insight = "profile/insight"
         case sleep = "profile/sleep/log"
-        case movement = "profile/movement/log"
+        case activity = "profile/activity/log"
+        case device = "profile/device/log"
         case heart = "profile/heart/log"
         case blood = "profile/blood/log"
+        case oxygen = "profile/oxygen/log"
+        case energy = "profile/energy/log"
+        case body = "profile/body/log"
         case surveyResponse = "Survey/SurveyResponse"
     }
     
