@@ -24,7 +24,6 @@ public class HealthActivity {
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
     private var maxSampleLimit: Int = 32
-    private var bloodGlucoseUnit: HKUnit = .count()
     
     private enum StatisticType: String {
         case Total
@@ -35,34 +34,39 @@ public class HealthActivity {
     }
     
     private enum HealthTypeIdentifier: String, CaseIterable {
-        case Sleep
-        case StepCount
-        case HeartRate
-        case RestingHeartRate
-        case WalkingHeartRateAverage
-        case HeartRateVariability
-        case BloodPressureSystolic
-        case BloodPressureDiastolic
-        case BloodGlucose
-        case VO2Max
-        case OxygenSaturation
-        case RespiratoryRate
-        case ActiveEnergyBurned
-        case BasalEnergyBurned
-        case TimeInDaylight
-        case Height
-        case Weight
-        case LeanBodyMass
-        case BodyMassIndex
-        case BodyFat
-        case WaistCircumference
-        case StandTime
-        case MoveTime
-        case ExerciseTime
-        case ActivitySummary
+        case Sleep = "sleep"
+        case StepCount = "step_count"
+        case FloorCount = "floor_count"
+        case HeartRate = "heart_rate"
+        case RestingHeartRate = "resting_heart_rate"
+        case WalkingHeartRateAverage = "walking_heart_rate_average"
+        case HeartRateVariability = "heart_rate_variability_sdnn"
+        case BloodPressureSystolic = "blood_pressure_systolic"
+        case BloodPressureDiastolic = "blood_pressure_diastolic"
+        case BloodGlucose = "blood_glucose"
+        case VO2Max = "vo2_max"
+        case OxygenSaturation = "oxygen_saturation"
+        case RespiratoryRate = "respiratory_rate"
+        case ActiveEnergyBurned = "active_energy_burned"
+        case BasalEnergyBurned = "basal_energy_burned"
+        case TimeInDaylight = "time_in_daylight"
+        case Height = "height"
+        case Weight = "weight"
+        case LeanBodyMass = "lean_body_mass"
+        case BodyMassIndex = "body_mass_index"
+        case BodyFat = "body_fat"
+        case WaistCircumference = "waist_circumference"
+        case StandTime = "stand_time"
+        case MoveTime = "move_time"
+        case ExerciseTime = "exercise_time"
+        case ActivitySummary = "activity_summary"
         
         var keyName: String {
             "Sahha".appending(self.rawValue)
+        }
+        
+        var logName: String {
+            self.rawValue
         }
         
         var objectType: HKObjectType? {
@@ -71,6 +75,8 @@ public class HealthActivity {
                 return HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             case .StepCount:
                 return HKSampleType.quantityType(forIdentifier: .stepCount)!
+            case .FloorCount:
+                return HKSampleType.quantityType(forIdentifier: .flightsClimbed)!
             case .HeartRate:
                 return HKSampleType.quantityType(forIdentifier: .heartRate)!
             case .RestingHeartRate:
@@ -148,8 +154,41 @@ public class HealthActivity {
                 .meter()
             case .Weight, .LeanBodyMass:
                 .gramUnit(with: .kilo)
-            case .Sleep, .StepCount, .BloodPressureSystolic, .BloodPressureDiastolic, .BloodGlucose, .BodyMassIndex, .ActivitySummary:
+            case .BloodPressureSystolic, .BloodPressureDiastolic:
+                .millimeterOfMercury()
+            case .BloodGlucose:
+                HKUnit(from: "mg/dL")
+            case .Sleep, .StepCount, .FloorCount, .BodyMassIndex, .ActivitySummary:
                 .count()
+            }
+        }
+        
+        var unitString: String {
+            return switch self {
+            case .HeartRate, .RestingHeartRate, .WalkingHeartRateAverage:
+                "m/s"
+            case .HeartRateVariability:
+                "ms"
+            case .VO2Max:
+                "ml/kg/min"
+            case .OxygenSaturation, .BodyFat:
+                "percent"
+            case .RespiratoryRate:
+                "bps"
+            case .ActiveEnergyBurned, .BasalEnergyBurned:
+                "kcal"
+            case .Sleep, .TimeInDaylight, .StandTime, .MoveTime, .ExerciseTime:
+                "minute"
+            case .Height, .WaistCircumference:
+                "m"
+            case .Weight, .LeanBodyMass:
+                "kg"
+            case .BloodPressureSystolic, .BloodPressureDiastolic:
+                "mmHg"
+            case .BloodGlucose:
+                "mg/dL"
+            case .StepCount, .FloorCount, .BodyMassIndex, .ActivitySummary:
+                "count"
             }
         }
         
@@ -157,13 +196,13 @@ public class HealthActivity {
             switch self {
             case .Sleep:
                 return .sleep
-            case .StepCount, .MoveTime, .StandTime, .ExerciseTime, .ActivitySummary:
+            case .StepCount, .FloorCount, .MoveTime, .StandTime, .ExerciseTime, .ActivitySummary:
                 return .activity
             case .HeartRate, .RestingHeartRate, .WalkingHeartRateAverage, .HeartRateVariability:
                 return .heart
             case .BloodPressureSystolic, .BloodPressureDiastolic, .BloodGlucose:
                 return .blood
-            case .VO2Max, .OxygenSaturation, .RespiratoryRate:
+            case .OxygenSaturation, .VO2Max, .RespiratoryRate:
                 return .oxygen
             case .ActiveEnergyBurned, .BasalEnergyBurned, .TimeInDaylight:
                 return .energy
@@ -176,7 +215,7 @@ public class HealthActivity {
             switch self {
             case .Sleep:
                 return .sleep
-            case .StepCount, .MoveTime, .StandTime, .ExerciseTime:
+            case .StepCount, .FloorCount, .MoveTime, .StandTime, .ExerciseTime:
                 return .activity
             case .HeartRate, .RestingHeartRate, .WalkingHeartRateAverage, .HeartRateVariability:
                 return .heart
@@ -417,15 +456,7 @@ public class HealthActivity {
         
         backgroundHealthTypes = enabledHealthTypes
         
-        store.preferredUnits(for: [HKObjectType.quantityType(forIdentifier: .bloodGlucose)!]) { [weak self] unitTypes, error in
-            if let error = error {
-                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "postSensorData", body: "store.preferredUnits")
-                callback("Sahha | Post sensor data task - Glucose Unit Invalid", false)
-            } else if let unitType = unitTypes.first {
-                self?.bloodGlucoseUnit = unitType.value
-                self?.postNextSensorData(callback: sensorCallback)
-            }
-        }
+        postNextSensorData(callback: sensorCallback)
     }
     
     private func postNextSensorData(callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
@@ -465,33 +496,7 @@ public class HealthActivity {
                         self?.postNextSensorData(callback: callback)
                         return
                     }
-                    self?.postSleepRange(samples: categorySamples) { error, success in
-                        if success {
-                            self?.setAnchor(anchor: newAnchor, healthType: healthType)
-                            self?.postSensorData(healthType: healthType, callback: callback)
-                        } else {
-                            callback(error, success)
-                        }
-                    }
-                case .heart:
-                    guard let quantitySamples = samples as? [HKQuantitySample] else {
-                        self?.postNextSensorData(callback: callback)
-                        return
-                    }
-                    self?.postHeartRange(healthType: healthType, samples: quantitySamples) { error, success in
-                        if success {
-                            self?.setAnchor(anchor: newAnchor, healthType: healthType)
-                            self?.postSensorData(healthType: healthType, callback: callback)
-                        } else {
-                            callback(error, success)
-                        }
-                    }
-                case .blood:
-                    guard let quantitySamples = samples as? [HKQuantitySample] else {
-                        self?.postNextSensorData(callback: callback)
-                        return
-                    }
-                    self?.postBloodRange(healthType: healthType, samples: quantitySamples) { error, success in
+                    self?.postSleepSamples(samples: categorySamples) { error, success in
                         if success {
                             self?.setAnchor(anchor: newAnchor, healthType: healthType)
                             self?.postSensorData(healthType: healthType, callback: callback)
@@ -504,7 +509,7 @@ public class HealthActivity {
                         self?.postNextSensorData(callback: callback)
                         return
                     }
-                    self?.postHealthRange(healthType: healthType, samples: quantitySamples) { error, success in
+                    self?.postHealthSamples(healthType: healthType, samples: quantitySamples) { error, success in
                         if success {
                             self?.setAnchor(anchor: newAnchor, healthType: healthType)
                             self?.postSensorData(healthType: healthType, callback: callback)
@@ -860,9 +865,9 @@ public class HealthActivity {
         return recordingMethod
     }
     
-    private func postSleepRange(samples: [HKCategorySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+    private func postSleepSamples(samples: [HKCategorySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
         
-        var sleepRequests: [SleepRequest] = []
+        var requests: [DataLogRequest] = []
         for sample in samples {
             let sleepStage: SleepStage
             
@@ -899,11 +904,15 @@ public class HealthActivity {
                 }
             }
             
-            let sleepRequest = SleepRequest(stage: sleepStage, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
-            sleepRequests.append(sleepRequest)
+            let difference = Calendar.current.dateComponents([.minute], from: sample.startDate, to: sample.endDate)
+            let value = Double(difference.minute ?? 0)
+            
+            let request = DataLogRequest(logType: .sleep, dataType: sleepStage.rawValue, value: value, unit: HealthTypeIdentifier.Sleep.unitString, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "type_unknown", startDate: sample.startDate, endDate: sample.endDate)
+            
+            requests.append(request)
         }
-
-        APIController.postSleepLog(body: sleepRequests) { result in
+        
+        APIController.postDataLog(body: requests) { result in
             switch result {
             case .success(_):
                 callback(nil, true)
@@ -913,72 +922,77 @@ public class HealthActivity {
             }
         }
     }
+
     
-    private func postHealthRange(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+    private func postHealthSamples(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
         
-        var healthRequests: [HealthRequest] = []
+        var requests: [DataLogRequest] = []
         for sample in samples {
+            
+            var dataType = healthType.rawValue
+            
             let value: Double = sample.quantity.doubleValue(for: healthType.unit)
-            let healthRequest = HealthRequest(dataType: healthType.rawValue, value: value, unit: healthType.unit.unitString, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
-            healthRequests.append(healthRequest)
-        }
-
-        APIController.postHealthLog(body: healthRequests, path: healthType.endpointPath) { result in
-            switch result {
-            case .success(_):
-                callback(nil, true)
-            case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, false)
-            }
-        }
-    }
-    
-    private func postHeartRange(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
-        
-        var heartRequests: [HeartRequest] = []
-        for sample in samples {
-            let count: Double = sample.quantity.doubleValue(for: healthType.unit)
-            let heartRequest = HeartRequest(dataType: healthType.rawValue, count: count, unit: healthType.unit.unitString, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
-            heartRequests.append(heartRequest)
-        }
-
-        APIController.postHeartLog(body: heartRequests) { result in
-            switch result {
-            case .success(_):
-                callback(nil, true)
-            case .failure(let error):
-                print(error.localizedDescription)
-                callback(error.localizedDescription, false)
-            }
-        }
-    }
-    
-    private func postBloodRange(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
-        
-        var bloodRequests: [BloodRequest] = []
-        for sample in samples {
             
-            var count: Double
-            var unit: String?
-            switch healthType {
-            case .BloodPressureSystolic, .BloodPressureDiastolic:
-                count = sample.quantity.doubleValue(for: .millimeterOfMercury())
-            case .BloodGlucose:
-                if bloodGlucoseUnit != .count() {
-                    count = sample.quantity.doubleValue(for: bloodGlucoseUnit)
-                    unit = bloodGlucoseUnit.unitString
-                } else {
-                    Sahha.postError(message: "Blood Glucose measurement unit incorrect", path: "HealthActivity", method: "postBloodRange", body: "if bloodGlucoseUnit != .count() | \(bloodGlucoseUnit.unitString)")
-                    callback("Blood Glucose measurement unit incorrect", false)
-                    return
+            var request = DataLogRequest(logType: healthType.sensorType, dataType: healthType.rawValue, value: value, unit: healthType.unit.unitString, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "type_unknown", startDate: sample.startDate, endDate: sample.endDate)
+            
+            
+            var additionalProperties: [String: String] = [:]
+            
+            if let metaValue = sample.metadata?[HKMetadataKeyHeartRateSensorLocation] as? NSNumber, let metaEnumValue = HKHeartRateSensorLocation(rawValue: metaValue.intValue) {
+                let stringValue: String
+                switch metaEnumValue {
+                case .chest:
+                    stringValue = "chest"
+                case .earLobe:
+                    stringValue = "ear_lobe"
+                case .finger:
+                    stringValue = "finger"
+                case .foot:
+                    stringValue = "foot"
+                case .hand:
+                    stringValue = "hand"
+                case .wrist:
+                    stringValue = "wrist"
+                case .other:
+                    stringValue = "other"
+                @unknown default:
+                    stringValue = "unknown"
                 }
-            default:
-                count = sample.quantity.doubleValue(for: .count())
+                additionalProperties = [DataLogPropertyIdentifier.measurementLocation.rawValue: stringValue]
             }
             
-            var relationToMeal: BloodRelationToMeal?
+            if let metaValue = sample.metadata?[HKMetadataKeyVO2MaxTestType] as? NSNumber, let metaEnumValue = HKVO2MaxTestType(rawValue: metaValue.intValue) {
+                let stringValue: String
+                switch metaEnumValue {
+                case .maxExercise:
+                    stringValue = "max_exercise"
+                case .predictionNonExercise:
+                    stringValue = "prediction_non_exercise"
+                case .predictionSubMaxExercise:
+                    stringValue = "prediction_sub_max_exercise"
+                @unknown default:
+                    stringValue = "unknown"
+                }
+                additionalProperties = [DataLogPropertyIdentifier.measurementMethod.rawValue: stringValue]
+            }
+            
+            if let metaValue = sample.metadata?[HKMetadataKeyHeartRateMotionContext] as? NSNumber, let metaEnumValue = HKHeartRateMotionContext(rawValue: metaValue.intValue) {
+                let stringValue: String
+                switch metaEnumValue {
+                case .notSet:
+                    stringValue = "not_set"
+                case .sedentary:
+                    stringValue = "sedentary"
+                case .active:
+                    stringValue = "active"
+                @unknown default:
+                    stringValue = "unknown"
+                }
+                additionalProperties = [DataLogPropertyIdentifier.motionContext.rawValue: stringValue]
+            }
+            
             if let metaValue = sample.metadata?[HKMetadataKeyBloodGlucoseMealTime] as? NSNumber, let metaEnumValue = HKBloodGlucoseMealTime(rawValue: metaValue.intValue) {
+                let relationToMeal: BloodRelationToMeal
                 switch metaEnumValue {
                 case .preprandial:
                     relationToMeal = .beforeMeal
@@ -987,13 +1001,17 @@ public class HealthActivity {
                 default:
                     relationToMeal = .unknown
                 }
+                additionalProperties = [DataLogPropertyIdentifier.relationToMeal.rawValue: relationToMeal.rawValue]
             }
             
-            let bloodRequest = BloodRequest(dataType: healthType.rawValue, count: count, unit: unit, relationToMeal: relationToMeal, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "TYPE_UNKNOWN", startDate: sample.startDate, endDate: sample.endDate)
-            bloodRequests.append(bloodRequest)
+            if additionalProperties.isEmpty == false {
+                request.additionalProperties = additionalProperties
+            }
+            
+            requests.append(request)
         }
-
-        APIController.postBloodLog(body: bloodRequests) { result in
+        
+        APIController.postDataLog(body: requests) { result in
             switch result {
             case .success(_):
                 callback(nil, true)

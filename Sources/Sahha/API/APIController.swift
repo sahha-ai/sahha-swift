@@ -28,24 +28,8 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.analysis), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
-    static func postSleepLog(body: [SleepRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.sleep), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postHealthLog(body: [HealthRequest], path: ApiEndpoint.EndpointPath, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(path), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postHeartLog(body: [HeartRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.heart), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postBloodLog(body: [BloodRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.blood), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postExerciseLog(body: [HealthRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.activity), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.data), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postSurvey(body: SahhaSurvey, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
