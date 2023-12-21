@@ -7,7 +7,7 @@ struct AnalysisRequest: Encodable {
     var endDateTime: String?
     
     init(startDate: Date?, endDate: Date?) {
-        self.startDateTime = startDate?.toTimezoneFormat
-        self.endDateTime = endDate?.toTimezoneFormat
+        self.startDateTime = startDate?.toDateTime
+        self.endDateTime = endDate?.toDateTime
     }
 }

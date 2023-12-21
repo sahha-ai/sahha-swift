@@ -22,8 +22,8 @@ public struct SahhaSurvey: Encodable {
     public init(surveyType: String, questions: [SahhaSurveyQuestion], startDate: Date = Date(), endDate: Date = Date()) {
         self.surveyType = surveyType
         self.questions = questions
-        self.startDateTime = startDate.toTimezoneFormat
-        self.endDateTime = endDate.toTimezoneFormat
-        self.createdAt = Date().toTimezoneFormat
+        self.startDateTime = startDate.toDateTime
+        self.endDateTime = endDate.toDateTime
+        self.createdAt = Date().toDateTime
     }
 }

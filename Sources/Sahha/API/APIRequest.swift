@@ -38,22 +38,8 @@ class APIRequest {
         sahhaError.codePath = endpoint.relativePath
         sahhaError.codeMethod = method.rawValue
         
-        do {
-            if let jsonData = body, let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as? [String: Any] {
-                var jsonBody = jsonObject
-                if let _ = jsonObject["token"] as? String {
-                    jsonBody["token"] = "******"
-                }
-                if let _ = jsonObject["profileToken"] as? String {
-                    jsonBody["profileToken"] = "******"
-                }
-                if let _ = jsonObject["refreshToken"] as? String {
-                    jsonBody["refreshToken"] = "******"
-                }
-                sahhaError.codeBody = jsonBody.description
-            }
-        } catch {
-            print(error.localizedDescription)
+        if let jsonData = body, let jsonString = String(data: jsonData, encoding: .utf8) {
+            sahhaError.codeBody = jsonString
         }
         
         if endpoint.isAuthRequired {

@@ -28,8 +28,8 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.analysis), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
-    static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.data), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    static func postHealthLog(body: [HealthLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.health), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postSurvey(body: SahhaSurvey, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {

@@ -50,7 +50,7 @@ public class Sahha {
         Self.settings = settings
                 
         SahhaCredentials.getCredentials()
-        
+                
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
@@ -82,7 +82,7 @@ public class Sahha {
             switch result {
             case .success(let response):
                 if SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken) {
-                    checkDeviceInfo()
+                    putDeviceInfo()
                     callback(nil, true)
                 } else {
                     let errorMessage: String = "Sahha Credentials could not be set"
@@ -99,7 +99,7 @@ public class Sahha {
     public static func authenticate(profileToken: String, refreshToken: String, callback: @escaping (String?, Bool) -> Void) {
         
         if SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken) {
-            checkDeviceInfo()
+            putDeviceInfo()
             callback(nil, true)
         } else {
             let errorMessage: String = "Sahha Credentials could not be set"
@@ -121,27 +121,22 @@ public class Sahha {
     
     private static func checkDeviceInfo() {
         if SahhaCredentials.isAuthenticated, SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
-            putDeviceInfo { _, success in
-                if success {
-                    // Save the latest values
-                    SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
-                    SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
-                    SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
-                    SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
-                }
-            }
+            putDeviceInfo()
         }
     }
     
-    private static func putDeviceInfo(callback: @escaping (String?, Bool) -> Void) {
+    private static func putDeviceInfo() {
         let body = SahhaErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
         APIController.putDeviceInfo(body: body) { result in
             switch result {
             case .success(_):
-                callback(nil, true)
+                // Save the latest values
+                SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
+                SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
+                SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
+                SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
             case .failure(let error):
                 print(error.message)
-                callback(error.message, false)
             }
         }
     }
@@ -184,10 +179,6 @@ public class Sahha {
         health.activate { error, status in
             callback(error, status)
         }
-    }
-    
-    public static func postSensorData(callback: @escaping (String?, Bool) -> Void) {
-        health.postSensorData(callback: callback)
     }
     
     // MARK: - Analyzation

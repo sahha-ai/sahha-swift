@@ -24,6 +24,7 @@ public enum SahhaSensor: String, CaseIterable {
     case blood
     case oxygen
     case energy
+    case temperature
     case body
 }
 
@@ -41,15 +42,6 @@ public enum SahhaSensorStatus: Int {
 class SahhaConfig {
 
     init() {
-    }
-    
-    static var appAnalyticsKey: String {
-        switch Sahha.settings.environment {
-        case .production:
-            return "f71d21ca-e775-4e37-8f77-27f65e548d17"
-        case .sandbox:
-            return "7af31263-6536-4010-8bd8-3fa49c6089f6"
-        }
     }
     
     static var apiBasePath: String {

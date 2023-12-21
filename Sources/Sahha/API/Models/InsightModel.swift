@@ -2,21 +2,21 @@
 
 import Foundation
 
-public enum SahhaInsightIdentifier: String, Codable {
-    case TimeInBedDailyTotal
-    case TimeAsleepDailyTotal
-    case TimeInREMSleepDailyTotal
-    case TimeInLightSleepDailyTotal
-    case TimeInDeepSleepDailyTotal
-    case StepCountDailyTotal
-    case StandHoursDailyTotal
-    case StandHoursDailyGoal
-    case MoveTimeDailyTotal
-    case MoveTimeDailyGoal
-    case ExerciseTimeDailyTotal
-    case ExerciseTimeDailyGoal
-    case ActiveEnergyBurnedDailyTotal
-    case ActiveEnergyBurnedDailyGoal
+public enum SahhaInsightIdentifier: String, Codable, CaseIterable {
+    case time_in_bed_daily_total
+    case time_asleep_daily_total
+    case time_in_rem_sleep_daily_total
+    case time_in_light_sleep_daily_total
+    case time_in_deep_sleep_daily_total
+    case step_count_daily_total
+    case stand_hours_daily_total
+    case stand_hours_daily_goal
+    case move_time_daily_total
+    case move_time_daily_goal
+    case exercise_time_daily_total
+    case exercise_time_daily_goal
+    case active_energy_burned_daily_total
+    case active_energy_burned_daily_goal
 }
 
 public struct SahhaInsight: Codable {
@@ -38,7 +38,7 @@ public struct SahhaInsightRequest: Codable {
         self.name = insight.name.rawValue
         self.value = insight.value
         self.unit = insight.unit
-        self.startDateTime = insight.startDate.toTimezoneFormat
-        self.endDateTime = insight.endDate.toTimezoneFormat
+        self.startDateTime = insight.startDate.toDateTime
+        self.endDateTime = insight.endDate.toDateTime
     }
 }

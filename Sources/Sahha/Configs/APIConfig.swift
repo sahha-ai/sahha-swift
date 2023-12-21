@@ -35,7 +35,7 @@ class ApiEndpoint {
         case demographic = "profile/demographic"
         case analysis = "profile/analysis"
         case insight = "profile/insight"
-        case data = "profile/data/log"
+        case health = "profile/health/log"
         case sleep = "profile/sleep/log"
         case activity = "profile/activity/log"
         case device = "profile/device/log"
