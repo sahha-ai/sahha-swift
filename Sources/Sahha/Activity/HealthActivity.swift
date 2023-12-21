@@ -380,7 +380,6 @@ public class HealthActivity {
                     callback(error, [])
                     return
                 }
-                let moreInsights = insights + newInsights
                 self?.getNextInsight(insightTypes: newInsightTypes, insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
             }
         default:
