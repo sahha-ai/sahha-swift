@@ -63,7 +63,11 @@ public class HealthActivity {
     }
     
     @objc private func onAppOpen() {
-        checkAuthorization()
+        checkAuthorization { [weak self] _, newStatus in
+            if newStatus == .enabled {
+                self?.postInsights()
+            }
+        }
     }
     
     @objc private func onAppClose() {
@@ -167,7 +171,6 @@ public class HealthActivity {
                 switch status {
                 case .unnecessary:
                     self.activityStatus = .enabled
-                    self.postSensorData()
                 default:
                     self.activityStatus = .pending
                 }
@@ -231,12 +234,6 @@ public class HealthActivity {
         }
     }
     
-    private func postSensorData() {
-        for healthType in HealthTypeIdentifier.allCases {
-            postSensorData(healthType: healthType)
-        }
-    }
-    
     private func postSensorData(healthType: HealthTypeIdentifier) {
         
         guard isAvailable, activityStatus == .enabled, Sahha.isAuthenticated else {
@@ -294,6 +291,10 @@ public class HealthActivity {
         // Set startDate to a week prior if date is nil (first app launch)
         let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -7, to: today) ?? today
         let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
+        
+        // Prevent duplication
+        setInsightDate(today)
+        
         // Only check once per day
         if Calendar.current.isDateInToday(startDate) == false, today > startDate {
             getInsights(dates: (startDate: startDate, endDate: endDate)) { error, insights in
@@ -311,6 +312,8 @@ public class HealthActivity {
                             print("Sahha | Post insight data successfully completed")
                             self?.setInsightDate(today)
                         case .failure(let error):
+                            // Reset date
+                            self?.setInsightDate(startDate)
                             print(error.localizedDescription)
                         }
                     }
