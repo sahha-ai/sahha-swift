@@ -87,9 +87,9 @@ enum HealthTypeIdentifier: String, CaseIterable {
     case body_mass_index
     case body_fat
     case waist_circumference
-    case stand_time
-    case move_time
-    case exercise_time
+    // case stand_time
+    // case move_time
+    // case exercise_time
     case activity_summary
     
     var keyName: String {
@@ -156,6 +156,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             HKSampleType.quantityType(forIdentifier: .bodyFatPercentage)!
         case .waist_circumference:
             HKSampleType.quantityType(forIdentifier: .waistCircumference)!
+            /*
         case .stand_time:
             HKSampleType.quantityType(forIdentifier: .appleStandTime)!
         case .move_time:
@@ -166,6 +167,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             }
         case .exercise_time:
             HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!
+             */
         case .activity_summary:
             HKSampleType.activitySummaryType()
         }
@@ -185,7 +187,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             .count().unitDivided(by: .second())
         case .active_energy_burned, .basal_energy_burned:
             .largeCalorie()
-        case .time_in_daylight, .stand_time, .move_time, .exercise_time:
+        case .time_in_daylight/* , .stand_time, .move_time, .exercise_time */:
             .minute()
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             .degreeCelsius()
@@ -216,7 +218,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             "bps"
         case .active_energy_burned, .basal_energy_burned:
             "kcal"
-        case .sleep, .time_in_daylight, .stand_time, .move_time, .exercise_time:
+        case .sleep, .time_in_daylight/* , .stand_time, .move_time, .exercise_time */:
             "minute"
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             "degC"
@@ -234,23 +236,23 @@ enum HealthTypeIdentifier: String, CaseIterable {
     }
     
     internal var sensorType: SahhaSensor {
-        switch self {
+        return switch self {
         case .sleep:
-            return .sleep
-        case .step_count, .floor_count, .move_time, .stand_time, .exercise_time, .activity_summary:
-            return .activity
+            .sleep
+        case .step_count, .floor_count, /* .move_time, .stand_time, .exercise_time, */.activity_summary:
+            .activity
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn:
-            return .heart
+            .heart
         case .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose:
-            return .blood
+            .blood
         case .oxygen_saturation, .vo2_max, .respiratory_rate:
-            return .oxygen
+            .oxygen
         case .active_energy_burned, .basal_energy_burned, .time_in_daylight:
-            return .energy
+            .energy
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
-            return .temperature
+            .temperature
         case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference:
-            return .body
+            .body
         }
     }
 }

@@ -63,11 +63,7 @@ public class HealthActivity {
     }
     
     @objc private func onAppOpen() {
-        checkAuthorization { [weak self] _, newStatus in
-            if newStatus == .enabled {
-                self?.postInsights()
-            }
-        }
+        checkAuthorization()
     }
     
     @objc private func onAppClose() {
@@ -240,6 +236,8 @@ public class HealthActivity {
             return
         }
         
+        postInsights()
+        
         if let sampleType = healthType.objectType as? HKSampleType {
             let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
@@ -287,16 +285,21 @@ public class HealthActivity {
     
     private func postInsights() {
         
+        guard isAvailable, activityStatus == .enabled, Sahha.isAuthenticated else {
+            return
+        }
+        
         let today = Date()
         // Set startDate to a week prior if date is nil (first app launch)
         let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -7, to: today) ?? today
         let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
         
-        // Prevent duplication
-        setInsightDate(today)
-        
         // Only check once per day
         if Calendar.current.isDateInToday(startDate) == false, today > startDate {
+            
+            // Prevent duplication
+            setInsightDate(today)
+            
             getInsights(dates: (startDate: startDate, endDate: endDate)) { error, insights in
                 if let error = error {
                     print(error)
@@ -600,10 +603,10 @@ public class HealthActivity {
 , unit: "minute", startDate: startDate, endDate: endDate))
                 if #available(iOS 16.0, *) {
                     sahhaInsights.append(SahhaInsight(name: .exercise_time_daily_goal, value:                 activitySummary.exerciseTimeGoal?.doubleValue(for: .minute()) ?? 0
-                                                      , unit: HealthTypeIdentifier.exercise_time.unitString, startDate: startDate, endDate: endDate))
+                                                      , unit: HealthTypeIdentifier.time_in_daylight.unitString, startDate: startDate, endDate: endDate))
                 } else {
                     sahhaInsights.append(SahhaInsight(name: .exercise_time_daily_goal, value:                 activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()) 
-                                                      , unit: HealthTypeIdentifier.exercise_time.unitString, startDate: startDate, endDate: endDate))
+                                                      , unit: HealthTypeIdentifier.time_in_daylight.unitString, startDate: startDate, endDate: endDate))
                 }
                 sahhaInsights.append(SahhaInsight(name: .active_energy_burned_daily_total, value:                 activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()) 
                                                   , unit: HealthTypeIdentifier.active_energy_burned.unitString, startDate: startDate, endDate: endDate))
