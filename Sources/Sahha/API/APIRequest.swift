@@ -102,6 +102,19 @@ class APIRequest {
             
             sahhaError.errorCode = urlResponse.statusCode
             
+            // Account has been removed
+            if urlResponse.statusCode == 410 {
+                print("Sahha | Account does not exist")
+                
+                Sahha.deauthenticate { error, success in
+                    DispatchQueue.main.async {
+                        onComplete(.failure(SahhaError(message: "Sahha | Account does not exist")))
+                    }
+                }
+                
+                return
+            }
+            
             // Token has expired
             if urlResponse.statusCode == 401 {
                 print("Sahha | Authorization token is expired")
@@ -126,7 +139,6 @@ class APIRequest {
                     }
                 }
                 return
-                
             }
             
             if urlResponse.statusCode == 204 {
