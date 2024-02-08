@@ -110,15 +110,20 @@ public class HealthActivity {
             return
         }
         
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            var objectTypes: Set<HKObjectType> = []
-            if let healthTypes = self?.enabledHealthTypes {
-                for healthType in healthTypes {
-                    if let objectType = healthType.objectType {
-                        objectTypes.insert(objectType)
-                    }
-                }
+        var objectTypes: Set<HKObjectType> = []
+        for healthType in enabledHealthTypes {
+            if let objectType = healthType.objectType {
+                objectTypes.insert(objectType)
             }
+        }
+        
+        guard objectTypes.isEmpty == false else {
+            activityStatus = .pending
+            callback("Sahha | Health data types not specified", activityStatus)
+            return
+        }
+        
+        DispatchQueue.global(qos: .background).async { [weak self] in
             self?.store.requestAuthorization(toShare: [], read: objectTypes) { [weak self] success, error in
                 DispatchQueue.main.async { [weak self] in
                     if let error = error {
@@ -136,22 +141,26 @@ public class HealthActivity {
     }
     
     internal func checkAuthorization(_ callback: ((String?, SahhaSensorStatus)->Void)? = nil) {
+        
         guard isAvailable else {
             activityStatus = .unavailable
             callback?(nil, activityStatus)
             return
         }
-        guard enabledHealthTypes.isEmpty == false else {
-            activityStatus = .pending
-            callback?("Sahha | Health data types not specified", activityStatus)
-            return
-        }
+        
         var objectTypes: Set<HKObjectType> = []
         for healthType in enabledHealthTypes {
             if let objectType = healthType.objectType {
                 objectTypes.insert(objectType)
             }
         }
+        
+        guard objectTypes.isEmpty == false else {
+            activityStatus = .pending
+            callback?("Sahha | Health data types not specified", activityStatus)
+            return
+        }
+
         store.getRequestStatusForAuthorization(toShare: [], read: objectTypes) { [weak self] status, error in
             
             guard let self = self else {
