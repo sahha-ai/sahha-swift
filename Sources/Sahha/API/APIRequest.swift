@@ -98,7 +98,7 @@ class APIRequest {
                 }
                 return
             }
-            print("Sahha |", method.rawValue.uppercased(), url.relativePath, urlResponse.statusCode)
+            // print("Sahha |", method.rawValue.uppercased(), url.relativePath, urlResponse.statusCode)
             
             sahhaError.errorCode = urlResponse.statusCode
             

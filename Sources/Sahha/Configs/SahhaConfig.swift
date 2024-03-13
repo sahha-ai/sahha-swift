@@ -26,6 +26,8 @@ public enum SahhaSensor: String, CaseIterable {
     case energy
     case temperature
     case body
+    case demographic
+    case exercise
 }
 
 public enum SahhaSensorStatus: Int {

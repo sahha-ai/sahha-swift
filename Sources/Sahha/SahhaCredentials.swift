@@ -19,7 +19,7 @@ internal class SahhaCredentials {
         if let profileToken = getProfileToken(), let refreshToken = getRefreshToken() {
             self.profileToken = profileToken
             self.refreshToken = refreshToken
-            print("Sahha | Credentials OK")
+            // print("Sahha | Credentials OK")
         } else {
             print("Sahha | Credentials missing")
         }

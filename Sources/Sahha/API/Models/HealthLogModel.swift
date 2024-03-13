@@ -3,7 +3,7 @@
 import Foundation
 import HealthKit
 
-struct HealthLogRequest: Encodable {
+struct HealthLogRequest: Codable {
     var id: String
     var logType: String
     var dataType: String
@@ -17,11 +17,11 @@ struct HealthLogRequest: Encodable {
     var additionalProperties: [String: String]?
     var parentId: String?
     
-    init(_ uuid: UUID, healthType: HealthTypeIdentifier, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: String? = nil) {
+    init(_ uuid: UUID, healthType: HealthTypeIdentifier, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.init(uuid, logType: healthType.sensorType.rawValue, dataType: healthType.rawValue, value: value, unit: healthType.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: String? = nil) {
+    init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.id = uuid.uuidString
         self.logType = logType
         self.dataType = dataType
@@ -33,7 +33,7 @@ struct HealthLogRequest: Encodable {
         self.startDateTime = startDate.toDateTime
         self.endDateTime = endDate.toDateTime
         self.additionalProperties = additionalProperties
-        self.parentId = parentId
+        self.parentId = parentId?.uuidString
     }
 }
 
@@ -59,6 +59,17 @@ enum BloodRelationToMeal: String {
     case unknown
     case before_meal
     case after_meal
+}
+
+public enum ActivitySummaryIdentifier: String {
+    case stand_hours_daily_total
+    case stand_hours_daily_goal
+    case move_time_daily_total
+    case move_time_daily_goal
+    case exercise_time_daily_total
+    case exercise_time_daily_goal
+    case active_energy_burned_daily_total
+    case active_energy_burned_daily_goal
 }
 
 enum HealthTypeIdentifier: String, CaseIterable {
@@ -87,10 +98,14 @@ enum HealthTypeIdentifier: String, CaseIterable {
     case body_mass_index
     case body_fat
     case waist_circumference
-    // case stand_time
-    // case move_time
-    // case exercise_time
+    case stand_time
+    case move_time
+    case exercise_time
     case activity_summary
+    case gender
+    case date_of_birth
+    case device_lock
+    case exercise
     
     var keyName: String {
         "sahha_".appending(self.rawValue)
@@ -156,7 +171,6 @@ enum HealthTypeIdentifier: String, CaseIterable {
             HKSampleType.quantityType(forIdentifier: .bodyFatPercentage)!
         case .waist_circumference:
             HKSampleType.quantityType(forIdentifier: .waistCircumference)!
-            /*
         case .stand_time:
             HKSampleType.quantityType(forIdentifier: .appleStandTime)!
         case .move_time:
@@ -167,9 +181,16 @@ enum HealthTypeIdentifier: String, CaseIterable {
             }
         case .exercise_time:
             HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!
-             */
         case .activity_summary:
             HKSampleType.activitySummaryType()
+        case .gender:
+            HKCharacteristicType.characteristicType(forIdentifier: .biologicalSex)
+        case .date_of_birth:
+            HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth)
+        case .device_lock:
+            nil
+        case .exercise:
+            HKWorkoutType.workoutType()
         }
     }
     
@@ -187,7 +208,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             .count().unitDivided(by: .second())
         case .active_energy_burned, .basal_energy_burned:
             .largeCalorie()
-        case .time_in_daylight/* , .stand_time, .move_time, .exercise_time */:
+        case .time_in_daylight, .stand_time, .move_time, .exercise_time:
             .minute()
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             .degreeCelsius()
@@ -199,7 +220,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             .millimeterOfMercury()
         case .blood_glucose:
             HKUnit(from: "mg/dL")
-        case .sleep, .step_count, .floor_count, .body_mass_index, .activity_summary:
+        case .sleep, .step_count, .floor_count, .body_mass_index, .activity_summary, .gender, .date_of_birth, .device_lock, .exercise:
             .count()
         }
     }
@@ -218,7 +239,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
             "bps"
         case .active_energy_burned, .basal_energy_burned:
             "kcal"
-        case .sleep, .time_in_daylight/* , .stand_time, .move_time, .exercise_time */:
+        case .sleep, .time_in_daylight, .stand_time, .move_time, .exercise_time:
             "minute"
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             "degC"
@@ -232,6 +253,8 @@ enum HealthTypeIdentifier: String, CaseIterable {
             "mg/dL"
         case .step_count, .floor_count, .body_mass_index, .activity_summary:
             "count"
+        case .gender, .date_of_birth, .device_lock, .exercise:
+            "none"
         }
     }
     
@@ -239,7 +262,7 @@ enum HealthTypeIdentifier: String, CaseIterable {
         return switch self {
         case .sleep:
             .sleep
-        case .step_count, .floor_count, /* .move_time, .stand_time, .exercise_time, */.activity_summary:
+        case .step_count, .floor_count, .move_time, .stand_time, .exercise_time, .activity_summary:
             .activity
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn:
             .heart
@@ -253,6 +276,121 @@ enum HealthTypeIdentifier: String, CaseIterable {
             .temperature
         case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference:
             .body
+        case .gender, .date_of_birth:
+            .demographic
+        case .device_lock:
+            .device
+        case .exercise:
+            .exercise
+        }
+    }
+}
+
+extension HKWorkoutActivityType {
+    var name: String {
+        switch self {
+        case .americanFootball:             return "american_football"
+        case .archery:                      return "archery"
+        case .australianFootball:           return "australian_football"
+        case .badminton:                    return "badminton"
+        case .baseball:                     return "baseball"
+        case .basketball:                   return "basketball"
+        case .bowling:                      return "bowling"
+        case .boxing:                       return "boxing"
+        case .climbing:                     return "climbing"
+        case .cricket:                      return "cricket"
+        case .crossTraining:                return "cross_training"
+        case .curling:                      return "curling"
+        case .cycling:                      return "cycling"
+        case .dance:                        return "dance"
+        case .danceInspiredTraining:        return "dance_inspired_training"
+        case .elliptical:                   return "elliptical"
+        case .equestrianSports:             return "equestrian_sports"
+        case .fencing:                      return "fencing"
+        case .fishing:                      return "fishing"
+        case .functionalStrengthTraining:   return "functional_strength_training"
+        case .golf:                         return "golf"
+        case .gymnastics:                   return "gymnastics"
+        case .handball:                     return "handball"
+        case .hiking:                       return "hiking"
+        case .hockey:                       return "hockey"
+        case .hunting:                      return "hunting"
+        case .lacrosse:                     return "lacrosse"
+        case .martialArts:                  return "martial_arts"
+        case .mindAndBody:                  return "mind_and_body"
+        case .mixedMetabolicCardioTraining: return "mixed_metabolic_cardio_training"
+        case .paddleSports:                 return "paddle_sports"
+        case .play:                         return "play"
+        case .preparationAndRecovery:       return "preparation_and_recovery"
+        case .racquetball:                  return "racquetball"
+        case .rowing:                       return "rowing"
+        case .rugby:                        return "rugby"
+        case .running:                      return "running"
+        case .sailing:                      return "sailing"
+        case .skatingSports:                return "skating_sports"
+        case .snowSports:                   return "snow_sports"
+        case .soccer:                       return "soccer"
+        case .softball:                     return "softball"
+        case .squash:                       return "squash"
+        case .stairClimbing:                return "stair_climbing"
+        case .surfingSports:                return "surfing_sports"
+        case .swimming:                     return "swimming"
+        case .tableTennis:                  return "table_tennis"
+        case .tennis:                       return "tennis"
+        case .trackAndField:                return "track_and_field"
+        case .traditionalStrengthTraining:  return "traditional_strength_training"
+        case .volleyball:                   return "volleyball"
+        case .walking:                      return "walking"
+        case .waterFitness:                 return "water_fitness"
+        case .waterPolo:                    return "water_polo"
+        case .waterSports:                  return "water_sports"
+        case .wrestling:                    return "wrestling"
+        case .yoga:                         return "yoga"
+            
+            // - iOS 10
+            
+        case .barre:                        return "barre"
+        case .coreTraining:                 return "core_training"
+        case .crossCountrySkiing:           return "cross_country_skiing"
+        case .downhillSkiing:               return "downhill_skiing"
+        case .flexibility:                  return "flexibility"
+        case .highIntensityIntervalTraining:    return "high_intensity_interval_training"
+        case .jumpRope:                     return "jump_rope"
+        case .kickboxing:                   return "kickboxing"
+        case .pilates:                      return "pilates"
+        case .snowboarding:                 return "snowboarding"
+        case .stairs:                       return "stairs"
+        case .stepTraining:                 return "step_training"
+        case .wheelchairWalkPace:           return "wheelchair_walk_pace"
+        case .wheelchairRunPace:            return "wheelchair_run_pace"
+            
+            // - iOS 11
+            
+        case .taiChi:                       return "tai_chi"
+        case .mixedCardio:                  return "mixed_cardio"
+        case .handCycling:                  return "hand_cycling"
+            
+            // - iOS 13
+            
+        case .discSports:                   return "disc_sports"
+        case .fitnessGaming:                return "fitness_gaming"
+            
+            // - iOS 14
+        case .cardioDance:                  return "cardio_dance"
+        case .socialDance:                  return "social_dance"
+        case .pickleball:                   return "pickleball"
+        case .cooldown:                     return "cooldown"
+            
+            // - iOS 16
+        case .swimBikeRun:                  return "swim_bike_run"
+        case .transition:                   return "transition"
+            
+            // - iOS 17
+        case .underwaterDiving:             return "underwater_diving"
+            
+            // - Other
+        case .other:                        return "other"
+        @unknown default:                   return "unknown"
         }
     }
 }

@@ -20,8 +20,8 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .get, decodable: SahhaDemographic.self, onComplete: onComplete)
     }
     
-    static func putDemographic(body: SahhaDemographic, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.demographic), .put, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    internal static func patchDemographic(body: SahhaDemographic, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func getAnalysis(body: AnalysisRequest, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
@@ -30,14 +30,6 @@ class APIController {
     
     static func postHealthLog(body: [HealthLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.health), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postSurvey(body: SahhaSurvey, _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.surveyResponse), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
-    }
-    
-    static func postInsight(body: [SahhaInsightRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.insight), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postApiError(_ sahhaError: SahhaErrorModel, responseError: SahhaResponseError) {

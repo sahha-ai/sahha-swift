@@ -73,6 +73,10 @@ public class Sahha {
         return SahhaCredentials.isAuthenticated
     }
     
+    public static var profileToken: String? {
+        return SahhaCredentials.profileToken
+    }
+    
     public static func authenticate(appId: String, appSecret: String, externalId: String, callback: @escaping (String?, Bool) -> Void) {
         
         Self.appId = appId
@@ -120,8 +124,10 @@ public class Sahha {
     // MARK: - Device Info
     
     private static func checkDeviceInfo() {
-        if SahhaCredentials.isAuthenticated, SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
-            putDeviceInfo()
+        if SahhaCredentials.isAuthenticated {
+            if SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
+                putDeviceInfo()
+            }
         }
     }
     
@@ -156,7 +162,7 @@ public class Sahha {
     }
     
     public static func postDemographic(_ demographic: SahhaDemographic, callback: @escaping (String?, Bool) -> Void) {
-        APIController.putDemographic(body: demographic) { result in
+        APIController.patchDemographic(body: demographic) { result in
             switch result {
             case .success(_):
                 callback(nil, true)
@@ -201,25 +207,6 @@ public class Sahha {
         }
     }
     
-    // MARK: - Insights
-    
-    public static func getInsights(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        health.getInsights(dates: dates, callback: callback)
-    }
-    
-    // MARK: - Feedback
-    
-    public static func postSurvey(_ survey: SahhaSurvey, callback: @escaping (String?, Bool) -> Void) {
-        APIController.postSurvey(body: survey) { result in
-            switch result {
-            case .success(_):
-                callback(nil, true)
-            case .failure(let error):
-                callback(error.message, false)
-            }
-        }
-    }
-    
     // MARK: - Settings
     
     public static func openAppSettings() {
@@ -227,6 +214,13 @@ public class Sahha {
             UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!, options: [:]) { _ in
             }
         }
+    }
+    
+    // MARK: - Test
+    
+    public static func testData() {
+        health.clearTestData()
+        health.postSensorData(healthType: .active_energy_burned)
     }
     
     // MARK: - Errors

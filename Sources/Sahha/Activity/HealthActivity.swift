@@ -7,11 +7,10 @@ public class HealthActivity {
     
     private(set) var activityStatus: SahhaSensorStatus = .pending {
         didSet {
-            if activityStatus == .enabled {
-                if oldValue != .enabled {
-                    enableBackgroundDelivery()
-                }
-            } else {
+            if activityStatus == .enabled, oldValue != .enabled {
+                enableBackgroundDelivery()
+                getDemographic()
+            } else if activityStatus != .enabled, oldValue == .enabled {
                 store.disableAllBackgroundDelivery { _, _ in
                 }
             }
@@ -21,7 +20,8 @@ public class HealthActivity {
     private var enabledHealthTypes: Set<HealthTypeIdentifier> = []
     private let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
     private let store: HKHealthStore = HKHealthStore()
-    private var maxSampleLimit: Int = 32
+    private var maxHealthLogRequestLimit: Int = 64
+    private var healthLogRequests: [HealthLogRequest] = []
     
     private enum StatisticType: String {
         case total
@@ -32,7 +32,8 @@ public class HealthActivity {
     }
     
     internal init() {
-        print("Sahha | Health init")
+        // print("Sahha | Health init")
+        loadHealthLogData()
     }
     
     internal func clearAllData() {
@@ -42,6 +43,10 @@ public class HealthActivity {
         setInsightDate(nil)
     }
     
+    internal func clearTestData() {
+        setAnchor(anchor: nil, healthType: .active_energy_burned)
+    }
+        
     internal func configure(sensors: Set<SahhaSensor>, callback: (() -> Void)? = nil) {
         let enabledSensors = activitySensors.intersection(sensors)
         
@@ -51,25 +56,41 @@ public class HealthActivity {
                 enabledHealthTypes.insert(healthTypeIdentifier)
             }
         }
-        
+                
         NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
+                
+        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceUnlock), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
         
         checkAuthorization() { _, _ in
-            print("Sahha | Health configured")
+            // print("Sahha | Health configured")
             callback?()
         }
     }
     
-    @objc private func onAppOpen() {
+    @objc fileprivate func onAppOpen() {
         checkAuthorization()
     }
     
-    @objc private func onAppClose() {
+    @objc fileprivate func onAppClose() {
     }
     
-    private func setAnchor(anchor: HKQueryAnchor?, healthType: HealthTypeIdentifier) {
+    @objc fileprivate func onDeviceUnlock() {
+        if enabledHealthTypes.contains(.device_lock) {
+            createDeviceLog(false)
+        }
+    }
+    
+    @objc fileprivate func onDeviceLock() {
+        if enabledHealthTypes.contains(.device_lock) {
+            createDeviceLog(true)
+        }
+    }
+    
+    fileprivate func setAnchor(anchor: HKQueryAnchor?, healthType: HealthTypeIdentifier) {
         guard let anchor = anchor else {
             UserDefaults.standard.removeObject(forKey: healthType.keyName)
             return
@@ -83,7 +104,7 @@ public class HealthActivity {
         }
     }
     
-    private func getAnchor(healthType: HealthTypeIdentifier) -> HKQueryAnchor? {
+    fileprivate func getAnchor(healthType: HealthTypeIdentifier) -> HKQueryAnchor? {
         guard let data = UserDefaults.standard.data(forKey: healthType.keyName) else { return nil }
         do {
             return try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
@@ -94,12 +115,123 @@ public class HealthActivity {
         }
     }
     
-    private func setInsightDate(_ date: Date?) {
+    fileprivate func setInsightDate(_ date: Date?) {
         UserDefaults.standard.set(date: date, forKey: "SahhaInsightDate")
     }
     
-    private func getInsightDate() -> Date? {
+    fileprivate func getInsightDate() -> Date? {
         return UserDefaults.standard.date(forKey: "SahhaInsightDate")
+    }
+    
+    fileprivate func loadHealthLogData() {
+        let healthLogData = UserDefaults.standard.array(forKey: "SahhaHealthLogRequests") as? [Data] ?? []
+        
+        let decoder = JSONDecoder()
+        for data in healthLogData {
+            do {
+                let request = try decoder.decode(HealthLogRequest.self, from: data)
+                healthLogRequests.append(request)
+            } catch {
+                // Fallback
+            }
+        }
+    }
+    
+    fileprivate func saveHealthLogData() {
+        
+        let encoder = JSONEncoder()
+        var healthLogData: [Data] = []
+        var healthLogRequestsCopy = healthLogRequests
+        while healthLogRequestsCopy.isEmpty == false {
+            do {
+                let healthLogRequest = healthLogRequestsCopy.popLast()
+                let data = try encoder.encode(healthLogRequest)
+                healthLogData.append(data)
+            } catch {
+                // Fallback
+            }
+        }
+        
+        UserDefaults.standard.setValue(healthLogData, forKey: "SahhaHealthLogRequests")
+    }
+    
+    fileprivate func getDemographic() {
+        
+        // If demographic has been set before, ignore getting it again
+        guard UserDefaults.standard.string(forKey: "SahhaBirthDate") == nil || UserDefaults.standard.string(forKey: "SahhaGender") == nil else {
+            return
+        }
+        
+        // Create an empty object
+        var demographic = SahhaDemographic()
+        
+        do {
+            // Get the HealthKit gender
+            let gender = try store.biologicalSex()
+            switch gender.biologicalSex {
+            case .male:
+                demographic.gender = "male"
+            case .female:
+                demographic.gender = "female"
+            case .other:
+                demographic.gender = "gender diverse"
+            default:
+                break
+            }
+        } catch let error {
+            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let gender = try store.biologicalSex()")
+        }
+        
+        do {
+            // Get the HealthKit birth date
+            let dateOfBirth = try store.dateOfBirthComponents()
+            if let dateString = dateOfBirth.date?.toDateTime {
+                demographic.birthDate = dateString
+            }
+        } catch let error {
+            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let dateOfBirth = try store.dateOfBirthComponents()")
+        }
+        
+        // If HealthKit values exist, check the API for a stored value
+        if demographic.gender?.isEmpty == false || demographic.birthDate?.isEmpty == false {
+            APIController.getDemographic { result in
+
+                switch result {
+                case .success(let response):
+                    // If the API has a stored gender, ignore the local value
+                    if let gender = response.gender, gender.isEmpty == false {
+                        demographic.gender = nil
+                        UserDefaults.standard.set(response.gender, forKey: "SahhaGender")
+                    } else {
+                        UserDefaults.standard.set(demographic.gender, forKey: "SahhaGender")
+                    }
+                    // If the API has a store birth date, ignore the local value
+                    if let dateOfBirth = response.birthDate, dateOfBirth.isEmpty == false {
+                        demographic.birthDate = nil
+                        UserDefaults.standard.set(response.birthDate, forKey: "SahhaBirthDate")
+                    } else {
+                        UserDefaults.standard.set(demographic.birthDate, forKey: "SahhaBirthDate")
+                    }
+                    // If the API is missing gender or birth date, patch the missing values
+                    if demographic.gender?.isEmpty == false || demographic.birthDate?.isEmpty == false {
+                        APIController.patchDemographic(body: demographic) { _ in }
+                    }
+                case .failure(let error):
+                    print(error.message)
+                }
+            }
+        }
+    }
+    
+    fileprivate func filterError(_ error: Error, path: String, method: String, body: String) {
+        print(error.localizedDescription)
+        if let healthError = error as? HKError, healthError.code == HKError.Code.errorDatabaseInaccessible {
+            // The device is currently locked so data is inaccessible
+            // This should be considered a warning instead of an error
+            // Avoid sending an error message
+        } else {
+            Sahha.postError(message: error.localizedDescription, path: path, method: method, body: body)
+        }
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
@@ -180,7 +312,7 @@ public class HealthActivity {
                     self.activityStatus = .pending
                 }
             }
-            print("Sahha | Health activity status : \(self.activityStatus.description)")
+            // print("Sahha | Health activity status : \(self.activityStatus.description)")
             callback?(nil, self.activityStatus)
         }
     }
@@ -207,20 +339,21 @@ public class HealthActivity {
                     case .unnecessary:
                         self?.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] success, error in
                             if let error = error {
-                                print(error.localizedDescription)
-                                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
+                                self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
                                 return
                             }
                             switch success {
                             case true:
+                                // HKObserverQuery is the only query type that can run in the background - we then need to use HKAnchoredObjectQuery once the app is notified of a change to the HealthKit Store
                                 let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                                     if let error = errorOrNil {
-                                        print(error.localizedDescription)
-                                        Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "let query = HKObserverQuery")
+                                        self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "let query = HKObserverQuery")
+                                        // return before completionHandler() is called
+                                        return
                                     } else {
                                         self?.postSensorData(healthType: healthType)
                                     }
-                                    // Must be called to stop updating for duplicate data
+                                    // If you have subscribed for background updates you must call the completion handler here
                                     completionHandler()
                                 }
                                 if let store = self?.store {
@@ -239,7 +372,7 @@ public class HealthActivity {
         }
     }
     
-    private func postSensorData(healthType: HealthTypeIdentifier) {
+    internal func postSensorData(healthType: HealthTypeIdentifier) {
         
         guard isAvailable, activityStatus == .enabled, Sahha.isAuthenticated else {
             return
@@ -251,10 +384,9 @@ public class HealthActivity {
             let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
             let anchor = getAnchor(healthType: healthType)
-            let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: maxSampleLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
+            let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: HKObjectQueryNoLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
                 if let error = errorOrNil {
-                    print(error.localizedDescription)
-                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
+                    self?.filterError(error, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
                     return
                 }
                 guard let newAnchor = anchorOrNil, let samples = samplesOrNil, samples.isEmpty == false else {
@@ -264,35 +396,32 @@ public class HealthActivity {
                 switch healthType.sensorType {
                 case .sleep:
                     guard let categorySamples = samples as? [HKCategorySample] else {
-                        print("Sahha | sleep samples in incorrect format")
+                        print("Sahha | Sleep samples in incorrect format")
                         return
                     }
-                    self?.postSleepSamples(samples: categorySamples) { error, success in
-                        if success {
-                            self?.setAnchor(anchor: newAnchor, healthType: healthType)
-                            self?.postSensorData(healthType: healthType)
-                        }
+                    self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                    self?.createSleepLogs(samples: categorySamples)
+                case .exercise:
+                    guard let workoutSamples = samples as? [HKWorkout] else {
+                        print("Sahha | Exercise samples in incorrect format")
+                        return
                     }
+                    self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                    self?.createExerciseLogs(samples: workoutSamples)
                 default:
                     guard let quantitySamples = samples as? [HKQuantitySample] else {
                         print("Sahha | \(healthType.rawValue) samples in incorrect format")
                         return
                     }
-                    self?.postHealthSamples(healthType: healthType, samples: quantitySamples) { error, success in
-                        if success {
-                            self?.setAnchor(anchor: newAnchor, healthType: healthType)
-                            self?.postSensorData(healthType: healthType)
-                        } else {
-                            print(healthType.rawValue, "error")
-                        }
-                    }
+                    self?.setAnchor(anchor: newAnchor, healthType: healthType)
+                    self?.createHealthLogs(healthType: healthType, samples: quantitySamples)
                 }
             }
             store.execute(query)
         }
     }
     
-    private func postInsights() {
+    internal func postInsights() {
         
         guard isAvailable, activityStatus == .enabled, Sahha.isAuthenticated else {
             return
@@ -309,324 +438,68 @@ public class HealthActivity {
             // Prevent duplication
             setInsightDate(today)
             
-            getInsights(dates: (startDate: startDate, endDate: endDate)) { error, insights in
+            let startComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: startDate)
+            let endComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: endDate)
+            
+            let predicate = HKQuery.predicate(forActivitySummariesBetweenStart: startComponents, end: endComponents)
+            
+            let query = HKActivitySummaryQuery(predicate: predicate) { [weak self] query, result, error in
+                
                 if let error = error {
-                    print(error)
-                } else if insights.isEmpty == false {
-                    var requests: [SahhaInsightRequest] = []
-                    for insight in insights {
-                        requests.append(SahhaInsightRequest(insight))
+                    // Reset insight date
+                    self?.setInsightDate(startDate)
+                    self?.filterError(error, path: "HealthActivity", method: "getActivitySummary", body: "")
+                    return
+                }
+                
+                guard let result = result, !result.isEmpty else {
+                    print("Sahha | Health Activity Summary is empty")
+                    return
+                }
+                
+                var requests: [HealthLogRequest] = []
+                
+                for activitySummary in result {
+                    
+                    let logType = SahhaSensor.energy.rawValue
+                    let dateComponents = activitySummary.dateComponents(for: Calendar.current)
+                    let date = dateComponents.date ?? Date()
+                    let summaryStartDate: Date = Calendar.current.startOfDay(for: date)
+                    let summaryEndDate: Date = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: summaryStartDate) ?? summaryStartDate
+                    
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.stand_hours_daily_total.rawValue, value: activitySummary.appleStandHours.doubleValue(for: .count()), unit: "hour", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    
+                    if #available(iOS 16.0, *), let value = activitySummary.standHoursGoal?.doubleValue(for: .count()) {
+                        requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.stand_hours_daily_goal.rawValue, value: value, unit: "hour", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    } else {
+                        requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.stand_hours_daily_goal.rawValue, value: activitySummary.appleStandHoursGoal.doubleValue(for: .count()) , unit: "hour", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
                     }
                     
-                    APIController.postInsight(body: requests) { [weak self] result in
-                        switch result {
-                        case .success(_):
-                            print("Sahha | Post insight data successfully completed")
-                            self?.setInsightDate(today)
-                        case .failure(let error):
-                            // Reset date
-                            self?.setInsightDate(startDate)
-                            print(error.localizedDescription)
-                        }
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.move_time_daily_total.rawValue, value: activitySummary.appleMoveTime.doubleValue(for: .minute()) , unit: "minute", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.move_time_daily_goal.rawValue, value: activitySummary.appleMoveTimeGoal.doubleValue(for: .minute()) , unit: "minute", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.exercise_time_daily_total.rawValue, value: activitySummary.appleExerciseTime.doubleValue(for: .minute()) , unit: "minute", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    
+                    if #available(iOS 16.0, *), let value = activitySummary.exerciseTimeGoal?.doubleValue(for: .minute()) {
+                        requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.exercise_time_daily_goal.rawValue, value: value , unit: "minute", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    } else {
+                        requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.exercise_time_daily_goal.rawValue, value: activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()), unit: "minute", source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
                     }
-                }
-            }
-        } else {
-            print("Sahha | Post insight data - no new data available yet. Try again later.")
-        }
-    }
-    
-    internal func getInsights(dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        
-        var interval = DateComponents()
-        interval.day = 1
-        
-        getNextInsight(insightTypes: HealthTypeIdentifier.allCases, insights: [], startDate: dates?.startDate ?? Date(), endDate: dates?.endDate ?? Date(), interval: interval, callback: callback)
-    }
-    
-    private func getNextInsight(insightTypes: [HealthTypeIdentifier], insights: [SahhaInsight], startDate: Date, endDate: Date, interval: DateComponents, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        
-        guard insightTypes.isEmpty == false else {
-            print("Sahha | Get insight data successfully completed")
-            callback(nil, insights)
-            return
-        }
-        
-        var newInsightTypes = insightTypes
-        let healthType = newInsightTypes.removeFirst()
-        switch healthType {
-            /* // Coming soon
-        case .HeartRateVariability:
-            getInsightData(healthType: .HeartRateVariability, unit: .secondUnit(with: .milli), statisicType: .average, startDate: startDate, endDate: endDate, interval: interval, options: .discreteAverage) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        case .HeartRate:
-            getInsightData(healthType: .HeartRate, unit: .count().unitDivided(by: .minute()), statisicType: .average, startDate: startDate, endDate: endDate, interval: interval, options: .discreteAverage) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        case .RestingHeartRate:
-            getInsightData(healthType: .RestingHeartRate, unit: .count().unitDivided(by: .minute()), statisicType: .average, startDate: startDate, endDate: endDate, interval: interval, options: .discreteAverage) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        case .WalkingHeartRateAverage:
-            getInsightData(healthType: .WalkingHeartRateAverage, unit: .count().unitDivided(by: .minute()), statisicType: .average, startDate: startDate, endDate: endDate, interval: interval, options: .discreteAverage) { [weak self] error, newInsights in
-                self?.getNextInsight(insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-             */
-        case .step_count:
-            getInsightData(healthType: .step_count, statisicType: .total, startDate: startDate, endDate: endDate, interval: interval, options: .cumulativeSum) { [weak self] error, newInsights in
-                if let error = error {
-                    callback(error, [])
-                    return
-                }
-                self?.getNextInsight(insightTypes: newInsightTypes, insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        case .sleep:
-            getSleepInsightData(startDate: startDate, endDate: endDate, interval: interval) { [weak self] error, newInsights in
-                if let error = error {
-                    callback(error, [])
-                    return
-                }
-                self?.getNextInsight(insightTypes: newInsightTypes, insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        case .activity_summary:
-            getActivitySummaryInsightData(startDate: startDate, endDate: endDate) { [weak self] error, newInsights in
-                if let error = error {
-                    callback(error, [])
-                    return
-                }
-                self?.getNextInsight(insightTypes: newInsightTypes, insights: insights + newInsights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-            }
-        default:
-            getNextInsight(insightTypes: newInsightTypes, insights: insights, startDate: startDate, endDate: endDate, interval: interval, callback: callback)
-        }
-    }
-    
-    private func getInsightData(healthType: HealthTypeIdentifier, statisicType: StatisticType, startDate: Date, endDate: Date, interval: DateComponents, options: HKStatisticsOptions, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        
-        guard let quantityType = healthType.objectType as? HKQuantityType else {
-            let message = "Statistics can only be queried for quantity types"
-            Sahha.postError(message: message, path: "HealthActivity", method: "getInsightData", body: healthType.rawValue)
-            callback(message, [])
-            return
-        }
-        
-        let queryStartDate = Calendar.current.startOfDay(for: startDate)
-        let queryEndDate: Date = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
-        let predicate = HKQuery.predicateForSamples(withStart: queryStartDate, end: queryEndDate)
-        let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: queryStartDate, intervalComponents: interval)
-        
-        query.initialResultsHandler = {
-            _, results, error in
-            
-            guard let results = results else {
-                if let error = error {
-                    print(error.localizedDescription)
-                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getInsightData", body: "if let error = error {")
-                }
-                callback(error?.localizedDescription, [])
-                return
-            }
-            
-            var insights: [SahhaInsight] = []
-            
-            for result in results.statistics() {
-                let quantity: HKQuantity?
-                let quantityName: String = statisicType.rawValue
-                switch statisicType {
-                case .total:
-                    quantity = result.sumQuantity()
-                case .average:
-                    quantity = result.averageQuantity()
-                case .minimum:
-                    quantity = result.minimumQuantity()
-                case .maximum:
-                    quantity = result.maximumQuantity()
-                case .most_recent:
-                    quantity = result.mostRecentQuantity()
-                }
-                guard let quantity = quantity else {
-                    break
+                    
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.active_energy_burned_daily_total.rawValue, value: activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()), unit: HealthTypeIdentifier.active_energy_burned.unitString, source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
+                    
+                    requests.append(HealthLogRequest(UUID(), logType: logType, dataType: ActivitySummaryIdentifier.active_energy_burned_daily_goal.rawValue, value: activitySummary.activeEnergyBurnedGoal.doubleValue(for: .largeCalorie()), unit: HealthTypeIdentifier.active_energy_burned.unitString, source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: summaryStartDate, endDate: summaryEndDate))
                 }
                 
-                let insightName = healthType.rawValue + "_daily_" + quantityName
-                if let insightIdentifier = SahhaInsightIdentifier(rawValue: insightName) {
-                    let insight = SahhaInsight(name: insightIdentifier, value: quantity.doubleValue(for: healthType.unit), unit: healthType.unitString, startDate: result.startDate, endDate: result.endDate)
-                    insights.append(insight)
-                }
+                self?.addPendingHealthLogs(requests)
             }
             
-            callback(nil, insights)
+            store.execute(query)
+            
         }
-        
-        store.execute(query)
     }
-    
-    private func getSleepInsightData(startDate: Date, endDate: Date, interval: DateComponents, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        
-        let adjustedStartDate = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
-        let newStartDate = Calendar.current.date(bySetting: .hour, value: 18, of: adjustedStartDate) ?? adjustedStartDate
 
-        let newEndDate = Calendar.current.date(bySetting: .hour, value: 18, of: endDate) ?? endDate
-
-        let predicate = HKQuery.predicateForSamples(withStart: newStartDate, end: newEndDate)
-        let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
-            if let error = error {
-                print(error.localizedDescription)
-                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getSleepInsightData", body: "")
-                callback(error.localizedDescription, [])
-                return
-            }
-            guard let samples = samplesOrNil as? [HKCategorySample], samples.isEmpty == false else {
-                callback(nil, [])
-                return
-            }
-            
-            func isInBed(_ value: HKCategoryValueSleepAnalysis) -> Bool {
-                return value == .inBed
-            }
-            
-            func isAsleep(_ value: HKCategoryValueSleepAnalysis) -> Bool {
-                if value == .asleep {
-                    return true
-                } else if #available(iOS 16.0, *) {
-                    switch value {
-                    case .asleepREM, .asleepCore, .asleepDeep, .asleepUnspecified:
-                        return true
-                    default:
-                        return false
-                    }
-                }
-                return false
-            }
-            
-            var sleepInsights: [SahhaInsight] = []
-            let day = 86400.0
-            var rollingInterval = DateInterval(start: newStartDate, duration: day)
-            while rollingInterval.end <= newEndDate {
-                var bedDictionary: [String:SahhaInsight] = [:]
-                var sleepDictionary: [String:SahhaInsight] = [:]
-                var sleepREMDictionary: [String:SahhaInsight] = [:]
-                var sleepLightDictionary: [String:SahhaInsight] = [:]
-                var sleepDeepDictionary: [String:SahhaInsight] = [:]
-                for sample in samples {
-                    if let sleepStage = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
-                        let sampleInterval = DateInterval(start: sample.startDate, end: sample.endDate)
-                        if let intersection = sampleInterval.intersection(with: rollingInterval) {
-                            let sampleTime = intersection.duration / 60
-                            let sampleId = sample.sourceRevision.source.bundleIdentifier
-                            if isInBed(sleepStage) {
-                                var newInsight = bedDictionary[sampleId] ?? SahhaInsight(name: .time_in_bed_daily_total, value: 0, unit: HealthTypeIdentifier.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end)
-                                newInsight.value += sampleTime
-                                bedDictionary[sampleId] = newInsight
-                            } else if isAsleep(sleepStage) {
-                                var newInsight = sleepDictionary[sampleId] ?? SahhaInsight(name: .time_asleep_daily_total, value: 0, unit: HealthTypeIdentifier.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end)
-                                newInsight.value += sampleTime
-                                sleepDictionary[sampleId] = newInsight
-                                switch sleepStage {
-                                case .asleepREM:
-                                    var stageInsight = sleepREMDictionary[sampleId] ?? SahhaInsight(name: .time_in_rem_sleep_daily_total, value: 0, unit: HealthTypeIdentifier.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end)
-                                    stageInsight.value += sampleTime
-                                    sleepREMDictionary[sampleId] = stageInsight
-                                case .asleepCore:
-                                    var stageInsight = sleepLightDictionary[sampleId] ?? SahhaInsight(name: .time_in_light_sleep_daily_total, value: 0, unit: HealthTypeIdentifier.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end)
-                                    stageInsight.value += sampleTime
-                                    sleepLightDictionary[sampleId] = stageInsight
-                                case .asleepDeep:
-                                    var stageInsight = sleepDeepDictionary[sampleId] ?? SahhaInsight(name: .time_in_deep_sleep_daily_total, value: 0, unit: HealthTypeIdentifier.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end)
-                                    stageInsight.value += sampleTime
-                                    sleepDeepDictionary[sampleId] = stageInsight
-                                default:
-                                    break
-                                }
-                            }
-                        }
-                    }
-                }
-                if bedDictionary.isEmpty == false, let maxValue = bedDictionary.max(by: { $0.value.value < $1.value.value }) {
-                    sleepInsights.append(maxValue.value)
-                }
-                if sleepDictionary.isEmpty == false, let maxValue = sleepDictionary.max(by: { $0.value.value < $1.value.value }) {
-                    sleepInsights.append(maxValue.value)
-                }
-                if sleepREMDictionary.isEmpty == false, let maxValue = sleepREMDictionary.max(by: { $0.value.value < $1.value.value }) {
-                    sleepInsights.append(maxValue.value)
-                }
-                if sleepLightDictionary.isEmpty == false, let maxValue = sleepLightDictionary.max(by: { $0.value.value < $1.value.value }) {
-                    sleepInsights.append(maxValue.value)
-                }
-                if sleepDeepDictionary.isEmpty == false, let maxValue = sleepDeepDictionary.max(by: { $0.value.value < $1.value.value }) {
-                    sleepInsights.append(maxValue.value)
-                }
-                rollingInterval = DateInterval(start: rollingInterval.end, duration: day)
-            }
-            callback(nil, sleepInsights)
-        }
-        store.execute(query)
-    }
-    
-    private func getActivitySummaryInsightData(startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaInsight]) -> Void) {
-        
-        let startComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: startDate)
-        let endComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: endDate)
-        
-        let predicate = HKQuery.predicate(forActivitySummariesBetweenStart: startComponents, end: endComponents)
-        
-        let query = HKActivitySummaryQuery(predicate: predicate) { query, result, error in
-            
-            if let error = error {
-                print(error.localizedDescription)
-                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getActivitySummary", body: "")
-                callback(error.localizedDescription, [])
-                return
-            }
-            
-            guard let result = result, !result.isEmpty else {
-                callback("Sahha | Health Activity Summary is empty", [])
-                return
-            }
-            
-            var sahhaInsights: [SahhaInsight] = []
-            
-            for activitySummary in result {
-                
-                let dateComponents = activitySummary.dateComponents(for: Calendar.current)
-                let date = dateComponents.date ?? Date()
-                let startDate: Date = Calendar.current.startOfDay(for: date)
-                let endDate: Date = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: startDate) ?? startDate
-                
-                sahhaInsights.append(SahhaInsight(name: .stand_hours_daily_total, value:                 activitySummary.appleStandHours.doubleValue(for: .count()) 
-, unit: "hour", startDate: date, endDate: date))
-                if #available(iOS 16.0, *) {
-                    sahhaInsights.append(SahhaInsight(name: .stand_hours_daily_goal, value:                 activitySummary.standHoursGoal?.doubleValue(for: .count()) ?? 0
-                                                      , unit: "hour", startDate: startDate, endDate: endDate))
-                } else {
-                    sahhaInsights.append(SahhaInsight(name: .stand_hours_daily_goal, value:                 activitySummary.appleStandHoursGoal.doubleValue(for: .count()) 
-                                                      , unit: "hour", startDate: startDate, endDate: endDate))
-                }
-                sahhaInsights.append(SahhaInsight(name: .move_time_daily_total, value:                 activitySummary.appleMoveTime.doubleValue(for: .minute()) 
-, unit: "minute", startDate: startDate, endDate: endDate))
-                sahhaInsights.append(SahhaInsight(name: .move_time_daily_goal, value:                 activitySummary.appleMoveTimeGoal.doubleValue(for: .minute())
-, unit: "minute", startDate: startDate, endDate: endDate))
-                sahhaInsights.append(SahhaInsight(name: .exercise_time_daily_total, value:                 activitySummary.appleExerciseTime.doubleValue(for: .minute())
-, unit: "minute", startDate: startDate, endDate: endDate))
-                if #available(iOS 16.0, *) {
-                    sahhaInsights.append(SahhaInsight(name: .exercise_time_daily_goal, value:                 activitySummary.exerciseTimeGoal?.doubleValue(for: .minute()) ?? 0
-                                                      , unit: HealthTypeIdentifier.time_in_daylight.unitString, startDate: startDate, endDate: endDate))
-                } else {
-                    sahhaInsights.append(SahhaInsight(name: .exercise_time_daily_goal, value:                 activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()) 
-                                                      , unit: HealthTypeIdentifier.time_in_daylight.unitString, startDate: startDate, endDate: endDate))
-                }
-                sahhaInsights.append(SahhaInsight(name: .active_energy_burned_daily_total, value:                 activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()) 
-                                                  , unit: HealthTypeIdentifier.active_energy_burned.unitString, startDate: startDate, endDate: endDate))
-                sahhaInsights.append(SahhaInsight(name: .active_energy_burned_daily_goal, value:                 activitySummary.activeEnergyBurnedGoal.doubleValue(for: .largeCalorie())
-                                                  , unit: HealthTypeIdentifier.active_energy_burned.unitString, startDate: startDate, endDate: endDate))
-            }
-            
-            callback(nil, sahhaInsights)
-        }
-        store.execute(query)
-    }
     
     private func getRecordingMethod(_ sample: HKSample) -> String {
         var recordingMethod: String = "recording_method_unknown"
@@ -636,7 +509,12 @@ public class HealthActivity {
         return recordingMethod
     }
     
-    private func postSleepSamples(samples: [HKCategorySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+    private func createDeviceLog(_ isLocked: Bool) {
+        let request = HealthLogRequest(UUID(), healthType: .device_lock, value: isLocked ? 1 : 0, source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
+        addPendingHealthLogs([request])
+    }
+    
+    private func createSleepLogs(samples: [HKCategorySample]) {
         
         var requests: [HealthLogRequest] = []
         for sample in samples {
@@ -683,11 +561,85 @@ public class HealthActivity {
             requests.append(request)
         }
         
-        postHealthLogs(requests, callback: callback)
+        addPendingHealthLogs(requests)
     }
-
     
-    private func postHealthSamples(healthType: HealthTypeIdentifier, samples: [HKQuantitySample], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+    private func createExerciseLogs(samples: [HKWorkout]) {
+        
+        var requests: [HealthLogRequest] = []
+        for sample in samples {
+            let sampleId = sample.uuid
+            let sampleType = sample.workoutActivityType.name
+            let unit = HealthTypeIdentifier.exercise.unitString
+            let source = sample.sourceRevision.source.bundleIdentifier
+            let recordingMethod = getRecordingMethod(sample)
+            let deviceType = sample.sourceRevision.productType ?? "type_unknown"
+                        
+            // Add exercise session
+            var request = HealthLogRequest(sampleId, logType: SahhaSensor.exercise.rawValue, dataType: "exercise_session_" + sampleType, value: 1, unit: unit, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: sample.startDate, endDate: sample.endDate)
+            
+            var additionalProperties: [String: String] = [:]
+            
+            if let distance = sample.totalDistance {
+                let value = distance.doubleValue(for: .meter())
+                additionalProperties["total_distance"] = "\(value)"
+            }
+            
+            if let energy = sample.totalEnergyBurned {
+                let value = energy.doubleValue(for: .largeCalorie())
+                additionalProperties["total_energy_burned"] = "\(value)"
+            }
+            
+            if additionalProperties.isEmpty == false {
+                request.additionalProperties = additionalProperties
+            }
+            
+            requests.append(request)
+            
+            // Add exercise events
+            if let workoutEvents = sample.workoutEvents {
+                for workoutEvent in workoutEvents {
+                    let workoutEventType: String
+                    switch workoutEvent.type {
+                    case .pause:
+                        workoutEventType = "exercise_event_pause"
+                    case .resume:
+                        workoutEventType = "exercise_event_resume"
+                    case .lap:
+                        workoutEventType = "exercise_event_lap"
+                    case .marker:
+                        workoutEventType = "exercise_event_marker"
+                    case .motionPaused:
+                        workoutEventType = "exercise_event_motion_paused"
+                    case .motionResumed:
+                        workoutEventType = "exercise_event_motion_resumed"
+                    case .segment:
+                        workoutEventType = "exercise_event_segment"
+                    case .pauseOrResumeRequest:
+                        workoutEventType = "exercise_event_pause_or_resume_request"
+                    @unknown default:
+                        workoutEventType = "exercise_event_unknown"
+                    }
+                    let request = HealthLogRequest(UUID(), logType: SahhaSensor.exercise.rawValue, dataType: workoutEventType, value: 1, unit: unit, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: workoutEvent.dateInterval.start, endDate: workoutEvent.dateInterval.end, parentId: sampleId)
+                    requests.append(request)
+                }
+            }
+            
+            // Add exercise segments
+            if #available(iOS 16.0, *) {
+                for workoutActivity in sample.workoutActivities {
+                    let dataType = "exercise_segment_" + workoutActivity.workoutConfiguration.activityType.name
+                    let endDate: Date = workoutActivity.endDate ?? workoutActivity.startDate + workoutActivity.duration
+                    let request = HealthLogRequest(workoutActivity.uuid, logType: SahhaSensor.exercise.rawValue, dataType: dataType, value: 1, unit: unit, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: workoutActivity.startDate, endDate: endDate, parentId: sampleId)
+                    requests.append(request)
+                }
+            }
+        }
+        
+        addPendingHealthLogs(requests)
+    }
+    
+    private func createHealthLogs(healthType: HealthTypeIdentifier, samples: [HKQuantitySample]) {
         
         var requests: [HealthLogRequest] = []
         for sample in samples {
@@ -695,7 +647,6 @@ public class HealthActivity {
             let value: Double = sample.quantity.doubleValue(for: healthType.unit)
             
             var request = HealthLogRequest(sample.uuid, healthType: healthType, value: value, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "type_unknown", startDate: sample.startDate, endDate: sample.endDate)
-            
             
             var additionalProperties: [String: String] = [:]
             
@@ -772,16 +723,63 @@ public class HealthActivity {
             requests.append(request)
         }
         
-        postHealthLogs(requests, callback: callback)
+        addPendingHealthLogs(requests)
     }
     
-    private func postHealthLogs(_ healthRequests: [HealthLogRequest], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
-        APIController.postHealthLog(body: healthRequests) { result in
+    private func addPendingHealthLogs(_ requests: [HealthLogRequest]) {
+        
+        healthLogRequests.insert(contentsOf: requests, at: 0)
+        
+        checkPendingHealthLogs()
+    }
+    
+    private func checkPendingHealthLogs() {
+        
+        guard healthLogRequests.isEmpty == false else {
+            return
+        }
+
+        let date = UserDefaults.standard.date(forKey: "SahhaSensorDataDate") ?? Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let hourDifference = Calendar.current.dateComponents([.hour], from: date, to: Date()).hour ?? 0
+        // POST Sensor Logs if count > max || 1 hour has elapsed since last POST
+        if healthLogRequests.count >= maxHealthLogRequestLimit || hourDifference >= 1  {
+            postPendingHealthLogs()
+        } else {
+            saveHealthLogData()
+        }
+    }
+    
+    private func postPendingHealthLogs() {
+        
+        var requests: [HealthLogRequest] = []
+        for _ in 0..<maxHealthLogRequestLimit {
+            if let element = healthLogRequests.popLast() {
+                requests.append(element)
+            } else {
+                break
+            }
+        }
+
+        if requests.isEmpty == false {
+            postHealthLogs(requests) { [weak self] _, success in
+                if success {
+                    self?.checkPendingHealthLogs()
+                }
+            }
+        }
+    }
+    
+    private func postHealthLogs(_ requests: [HealthLogRequest], callback: @escaping (_ error: String?, _ success: Bool)-> Void) {
+        
+        UserDefaults.standard.set(date: Date(), forKey: "SahhaSensorDataDate")
+        
+        APIController.postHealthLog(body: requests) { [weak self] result in
             switch result {
             case .success(_):
                 callback(nil, true)
             case .failure(let error):
                 print(error.localizedDescription)
+                self?.healthLogRequests.append(contentsOf: requests)
                 callback(error.localizedDescription, false)
             }
         }
