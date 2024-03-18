@@ -24,18 +24,41 @@ public struct SahhaSettings {
     }
 }
 
-private enum SahhaStorage: String {
+internal enum SahhaStorage: String {
     case timeZone
     case sdkVersion
     case appVersion
     case systemVersion
     
-    var getValue: String {
+    internal var getValue: String {
         return UserDefaults.standard.string(forKey: self.rawValue) ?? ""
     }
     
-    func setValue(_ value: String) {
+    internal func setValue(_ value: String) {
         UserDefaults.standard.set(value, forKey: self.rawValue)
+    }
+    
+    internal static var demographic: SahhaDemographic {
+        var demographic = SahhaDemographic()
+        
+        if let demographicData = UserDefaults.standard.data(forKey: "SahhaDemographic") {
+            let decoder = JSONDecoder()
+            do {
+                demographic = try decoder.decode(SahhaDemographic.self, from: demographicData)
+            } catch {
+            }
+        }
+        
+        return demographic
+    }
+    
+    internal static func saveDemographic(_ demographic: SahhaDemographic?) {
+        let encoder = JSONEncoder()
+        do {
+            let demographicData = try encoder.encode(demographic)
+            UserDefaults.standard.setValue(demographicData, forKey: "SahhaDemographic")
+        } catch {
+        }
     }
 }
 

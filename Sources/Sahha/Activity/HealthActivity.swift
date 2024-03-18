@@ -32,7 +32,6 @@ public class HealthActivity {
     }
     
     internal init() {
-        // print("Sahha | Health init")
         loadHealthLogData()
     }
     
@@ -157,68 +156,71 @@ public class HealthActivity {
     
     fileprivate func getDemographic() {
         
-        // If demographic has been set before, ignore getting it again
-        guard UserDefaults.standard.string(forKey: "SahhaBirthDate") == nil || UserDefaults.standard.string(forKey: "SahhaGender") == nil else {
+        // Create an empty object
+        var demographic = SahhaStorage.demographic
+        
+        if demographic.gender != nil, demographic.birthDate != nil {
+            // We already have the latest value
+            //return
+        }
+        
+        var genderString: String?
+        var birthDateString: String?
+        
+        // Get the missing gender
+        if demographic.gender == nil {
+            do {
+                // Get the HealthKit gender
+                let gender = try store.biologicalSex()
+                switch gender.biologicalSex {
+                case .male:
+                    genderString = "male"
+                case .female:
+                    genderString = "female"
+                case .other:
+                    genderString = "gender diverse"
+                default:
+                    break
+                }
+            } catch let error {
+                filterError(error, path: "HealthActivity", method: "getDemographic", body: "let gender = try store.biologicalSex()")
+            }
+        }
+        
+        // Get the missing birth date
+        if demographic.birthDate == nil {
+            do {
+                // Get the HealthKit birth date
+                let dateOfBirth = try store.dateOfBirthComponents()
+                if let dateString = dateOfBirth.date?.toYYYYMMDD {
+                    birthDateString = dateString
+                }
+            } catch let error {
+                filterError(error, path: "HealthActivity", method: "getDemographic", body: "let dateOfBirth = try store.dateOfBirthComponents()")
+            }
+        }
+        
+        guard genderString != nil || birthDateString != nil else {
+            // There are no HealthKit values to save
             return
         }
         
-        // Create an empty object
-        var demographic = SahhaDemographic()
-        
-        do {
-            // Get the HealthKit gender
-            let gender = try store.biologicalSex()
-            switch gender.biologicalSex {
-            case .male:
-                demographic.gender = "male"
-            case .female:
-                demographic.gender = "female"
-            case .other:
-                demographic.gender = "gender diverse"
-            default:
-                break
-            }
-        } catch let error {
-            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let gender = try store.biologicalSex()")
-        }
-        
-        do {
-            // Get the HealthKit birth date
-            let dateOfBirth = try store.dateOfBirthComponents()
-            if let dateString = dateOfBirth.date?.toDateTime {
-                demographic.birthDate = dateString
-            }
-        } catch let error {
-            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let dateOfBirth = try store.dateOfBirthComponents()")
-        }
-        
-        // If HealthKit values exist, check the API for a stored value
-        if demographic.gender?.isEmpty == false || demographic.birthDate?.isEmpty == false {
-            APIController.getDemographic { result in
-
-                switch result {
-                case .success(let response):
-                    // If the API has a stored gender, ignore the local value
-                    if let gender = response.gender, gender.isEmpty == false {
-                        demographic.gender = nil
-                        UserDefaults.standard.set(response.gender, forKey: "SahhaGender")
-                    } else {
-                        UserDefaults.standard.set(demographic.gender, forKey: "SahhaGender")
-                    }
-                    // If the API has a store birth date, ignore the local value
-                    if let dateOfBirth = response.birthDate, dateOfBirth.isEmpty == false {
-                        demographic.birthDate = nil
-                        UserDefaults.standard.set(response.birthDate, forKey: "SahhaBirthDate")
-                    } else {
-                        UserDefaults.standard.set(demographic.birthDate, forKey: "SahhaBirthDate")
-                    }
-                    // If the API is missing gender or birth date, patch the missing values
-                    if demographic.gender?.isEmpty == false || demographic.birthDate?.isEmpty == false {
-                        APIController.patchDemographic(body: demographic) { _ in }
-                    }
-                case .failure(let error):
-                    print(error.message)
+        Sahha.getDemographic { error, result in
+            if let result = result {
+                demographic = result
+                if demographic.gender == nil {
+                    demographic.gender = genderString
                 }
+                if demographic.birthDate == nil {
+                    demographic.birthDate = birthDateString
+                }
+            }
+            
+            // Save the demographic
+            SahhaStorage.saveDemographic(demographic)
+            
+            // Post the demographic
+            Sahha.postDemographic(demographic) { _, _ in
             }
         }
     }
