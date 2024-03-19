@@ -383,7 +383,7 @@ public class HealthActivity {
         postInsights()
         
         if let sampleType = healthType.objectType as? HKSampleType {
-            let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+            let startDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
             let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
             let anchor = getAnchor(healthType: healthType)
             let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: HKObjectQueryNoLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
@@ -431,7 +431,7 @@ public class HealthActivity {
         
         let today = Date()
         // Set startDate to a week prior if date is nil (first app launch)
-        let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -7, to: today) ?? today
+        let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -31, to: today) ?? today
         let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
         
         // Only check once per day
