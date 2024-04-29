@@ -157,7 +157,7 @@ public class HealthActivity {
     fileprivate func getDemographic() {
         
         // Create an empty object
-        var demographic = SahhaStorage.demographic
+        var demographic = SahhaStorage.loadDemographic()
         
         if demographic.gender != nil, demographic.birthDate != nil {
             // We already have the latest value
@@ -215,9 +215,6 @@ public class HealthActivity {
                     demographic.birthDate = birthDateString
                 }
             }
-            
-            // Save the demographic
-            SahhaStorage.saveDemographic(demographic)
             
             // Post the demographic
             Sahha.postDemographic(demographic) { _, _ in

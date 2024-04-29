@@ -2,7 +2,7 @@
 
 import Foundation
 
-public struct SahhaDemographic: Codable {
+public struct SahhaDemographic: Codable, Equatable {
     public var age: Int?
     public var gender: String?
     public var country: String?
@@ -31,5 +31,21 @@ public struct SahhaDemographic: Codable {
         self.locale = locale
         self.livingArrangement = livingArrangement
         self.birthDate = birthDate
+    }
+    
+    public static func == (lhs: SahhaDemographic, rhs: SahhaDemographic) -> Bool {
+        return lhs.age == rhs.age &&
+        lhs.gender?.lowercased() == rhs.gender?.lowercased() &&
+        lhs.country?.lowercased() == rhs.country?.lowercased() &&
+        lhs.birthCountry?.lowercased() == rhs.birthCountry?.lowercased() &&
+        lhs.ethnicity?.lowercased() == rhs.ethnicity?.lowercased() &&
+        lhs.occupation?.lowercased() == rhs.occupation?.lowercased() &&
+        lhs.industry?.lowercased() == rhs.industry?.lowercased() &&
+        lhs.incomeRange?.lowercased() == rhs.incomeRange?.lowercased() &&
+        lhs.education?.lowercased() == rhs.education?.lowercased() &&
+        lhs.relationship?.lowercased() == rhs.relationship?.lowercased() &&
+        lhs.locale?.lowercased() == rhs.locale?.lowercased() &&
+        lhs.livingArrangement?.lowercased() == rhs.livingArrangement?.lowercased() &&
+        lhs.birthDate?.lowercased() == rhs.birthDate?.lowercased()
     }
 }

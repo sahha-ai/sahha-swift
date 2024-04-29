@@ -38,7 +38,7 @@ internal enum SahhaStorage: String {
         UserDefaults.standard.set(value, forKey: self.rawValue)
     }
     
-    internal static var demographic: SahhaDemographic {
+    internal static func loadDemographic() -> SahhaDemographic {
         var demographic = SahhaDemographic()
         
         if let demographicData = UserDefaults.standard.data(forKey: "SahhaDemographic") {
@@ -172,10 +172,16 @@ public class Sahha {
   
     // MARK: - Demographic
     
+    public static func loadDemographic() -> SahhaDemographic {
+        return SahhaStorage.loadDemographic()
+    }
+    
     public static func getDemographic(callback: @escaping (String?, SahhaDemographic?) -> Void) {
         APIController.getDemographic { result in
             switch result {
             case .success(let response):
+                // Save the result
+                SahhaStorage.saveDemographic(response)
                 callback(nil, response)
             case .failure(let error):
                 print(error.message)
@@ -188,6 +194,8 @@ public class Sahha {
         APIController.patchDemographic(body: demographic) { result in
             switch result {
             case .success(_):
+                // Save the result
+                SahhaStorage.saveDemographic(demographic)
                 callback(nil, true)
             case .failure(let error):
                 print(error.message)
