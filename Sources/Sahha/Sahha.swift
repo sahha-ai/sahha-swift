@@ -109,7 +109,7 @@ public class Sahha {
             switch result {
             case .success(let response):
                 if SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken) {
-                    putDeviceInfo()
+                    checkDeviceInfo()
                     callback(nil, true)
                 } else {
                     let errorMessage: String = "Sahha Credentials could not be set"
@@ -126,7 +126,7 @@ public class Sahha {
     public static func authenticate(profileToken: String, refreshToken: String, callback: @escaping (String?, Bool) -> Void) {
         
         if SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken) {
-            putDeviceInfo()
+            checkDeviceInfo()
             callback(nil, true)
         } else {
             let errorMessage: String = "Sahha Credentials could not be set"
