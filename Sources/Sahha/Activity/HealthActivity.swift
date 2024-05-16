@@ -347,8 +347,6 @@ public class HealthActivity {
                                 let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                                     if let error = errorOrNil {
                                         self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "let query = HKObserverQuery")
-                                        // return before completionHandler() is called
-                                        return
                                     } else {
                                         self?.postSensorData(healthType: healthType)
                                     }
