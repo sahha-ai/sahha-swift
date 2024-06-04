@@ -570,7 +570,7 @@ public class HealthActivity {
             let difference = Calendar.current.dateComponents([.minute], from: sample.startDate, to: sample.endDate)
             let value = Double(difference.minute ?? 0)
             
-            let request = DataLogRequest(sample.uuid, sensor: .sleep, value: value, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "type_unknown", startDate: sample.startDate, endDate: sample.endDate)
+            let request = DataLogRequest(sample.uuid, sensor: .sleep, dataType: sleepStage.rawValue, value: value, source: sample.sourceRevision.source.bundleIdentifier, recordingMethod: getRecordingMethod(sample), deviceType: sample.sourceRevision.productType ?? "type_unknown", startDate: sample.startDate, endDate: sample.endDate)
             
             requests.append(request)
         }
