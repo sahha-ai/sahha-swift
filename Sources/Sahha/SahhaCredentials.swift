@@ -5,7 +5,7 @@ import Security
 
 internal class SahhaCredentials {
 
-    internal(set) static var token: TokenResponse?
+    private(set) static var token: TokenResponse?
     
     internal static var isAuthenticated: Bool {
         if token?.profileToken.isEmpty == false {
@@ -103,7 +103,7 @@ internal class SahhaCredentials {
         return setData(account: account, service: service, data: data)
     }
     
-    private static func setData(account: String, service: String, data: Data) -> Bool {
+    @discardableResult private static func setData(account: String, service: String, data: Data) -> Bool {
 
         let query = [
             kSecValueData: data,

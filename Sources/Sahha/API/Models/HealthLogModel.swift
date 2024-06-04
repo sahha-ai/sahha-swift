@@ -95,11 +95,10 @@ public enum ActivitySummaryIdentifier: String {
     
     internal var unitString: String {
         return switch self {
-        case .stand_hours_daily_goal,
+        case .stand_hours_daily_total,
         .stand_hours_daily_goal:
             "hour"
-        case .stand_hours_daily_total,
-        .move_time_daily_total,
+        case .move_time_daily_total,
         .move_time_daily_goal,
         .exercise_time_daily_total,
         .exercise_time_daily_goal:
