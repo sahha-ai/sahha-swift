@@ -34,7 +34,7 @@ class ApiEndpoint {
         case deviceInfo = "profile/deviceInformation"
         case demographic = "profile/demographic"
         case analysis = "profile/analysis"
-        case health = "profile/health/log"
+        case dataLog = "profile/data/log"
     }
     
     let endpointPath: EndpointPath

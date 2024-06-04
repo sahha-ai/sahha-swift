@@ -43,7 +43,7 @@ class APIRequest {
         }
         
         if endpoint.isAuthRequired {
-            if let profileToken = SahhaCredentials.profileToken {
+            if let profileToken = SahhaCredentials.token?.profileToken {
                 let authValue = "Profile \(profileToken)"
                 urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
             } else {
@@ -120,12 +120,12 @@ class APIRequest {
                 print("Sahha | Authorization token is expired")
                 
                 // Get a new token
-                if let refreshToken = SahhaCredentials.refreshToken {
+                if let refreshToken = SahhaCredentials.token?.refreshToken {
                     APIController.postRefreshToken(body: RefreshTokenRequest(refreshToken: refreshToken)) { result in
                         switch result {
                         case .success(let response):
                             // Save new token
-                            SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken)
+                            SahhaCredentials.setToken(response)
                             
                             // Try failed endpoint again
                             APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)

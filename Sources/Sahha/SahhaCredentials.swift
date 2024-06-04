@@ -5,39 +5,39 @@ import Security
 
 internal class SahhaCredentials {
 
-    internal static var profileToken: String?
-    internal static var refreshToken: String?
+    internal(set) static var token: TokenResponse?
     
     internal static var isAuthenticated: Bool {
-        if profileToken?.isEmpty == false, refreshToken?.isEmpty == false {
+        if token?.profileToken.isEmpty == false {
             return true
         }
         return false
     }
     
-    internal static func getCredentials() {
-        if let profileToken = getProfileToken(), let refreshToken = getRefreshToken() {
-            self.profileToken = profileToken
-            self.refreshToken = refreshToken
-            // print("Sahha | Credentials OK")
+    internal static func configure() {
+        if let savedToken = Self.getToken() {
+            token = savedToken
+            print("Sahha | Credentials OK")
         } else {
             print("Sahha | Credentials missing")
         }
     }
     
-    private static func getProfileToken() -> String? {
-        return get(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath)
+    // MARK: - Get
+    
+    private static func getString(account: String, service: String) -> String? {
+        if let data = getData(account: account, service: service), let string = String(data: data, encoding: .utf8) {
+            return string
+        }
+        
+        return nil
     }
     
-    private static func getRefreshToken() -> String? {
-        return get(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId)
-    }
-    
-    private static func get(account: String, server: String) -> String? {
+    private static func getData(account: String, service: String) -> Data? {
         let query = [
             kSecAttrAccount: account,
-            kSecAttrServer: server,
-            kSecClass: kSecClassInternetPassword,
+            kSecAttrService: service,
+            kSecClass: kSecClassGenericPassword,
             kSecReturnData: true
         ] as [CFString : Any] as CFDictionary
         
@@ -50,51 +50,66 @@ internal class SahhaCredentials {
             Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "guard status == errSecSuccess else")
                 return nil
         }
-        if let data = result as? Data, let string = String(data: data, encoding: .utf8) {
-            return string
+        if let data = result as? Data {
+            return data
         } else {
             print ("Sahha | Credentials get data error")
             let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
-            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "if let data = result as? Data, let string = String(data: data, encoding: .utf8)")
+            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "if let data = result as? Data")
         }
         
         return nil
     }
     
-    @discardableResult internal static func setCredentials(profileToken: String, refreshToken: String) -> Bool {
-        setProfileToken(profileToken)
-        setRefreshToken(refreshToken)
-        guard let _ = self.profileToken, let _ = self.refreshToken else {
-            return false
+    internal static func getToken() -> TokenResponse? {
+        
+        if let data = getData(account:"token", service: SahhaConfig.appId) {
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode(TokenResponse.self, from: data) {
+                return decoded
+            }
         }
-        print("Sahha | Credentials set")
-        return true
+        
+        return nil
     }
     
-    private static func setProfileToken(_ value: String) {
-        self.profileToken = set(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: value)
+    internal static func getDemographic() -> SahhaDemographic? {
+        
+        if let demographicData = getData(account:"demographic", service: SahhaConfig.appId) {
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode(SahhaDemographic.self, from: demographicData) {
+                return decoded
+            }
+        }
+        
+        return nil
     }
     
-    private static func setRefreshToken(_ value: String) {
-        self.refreshToken = set(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: value)
-    }
+    // MARK: - Set
 
-    private static func set(account: String, server: String, value: String) -> String? {
+    private static func setString(account: String, service: String, value: String) -> Bool {
         if value.isEmpty {
-            print("Sahha | Credentials set empty value")
-            return nil
+            print("Sahha | Cannot set empty string value")
+            Sahha.postError(message: "\(account) string empty", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
+            return false
         }
         
         guard let data = value.data(using: .utf8) else {
-            print("Sahha | Credentials set data error")
-            Sahha.postError(message: "Data invalid", path: "SahhaCredentials", method: "set", body: "guard let data = value.data(using: .utf8) else")
-            return nil
+            print("Sahha | Convert string to data error")
+            Sahha.postError(message: "\(account) data invalid", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
+            return false
         }
+        
+        return setData(account: account, service: service, data: data)
+    }
+    
+    private static func setData(account: String, service: String, data: Data) -> Bool {
+
         let query = [
             kSecValueData: data,
             kSecAttrAccount: account,
-            kSecAttrServer: server,
-            kSecClass: kSecClassInternetPassword
+            kSecAttrService: service,
+            kSecClass: kSecClassGenericPassword
         ] as [CFString : Any] as CFDictionary
 
         // Add data in query to keychain
@@ -104,8 +119,8 @@ internal class SahhaCredentials {
             // Item already exist - update it.
             let query = [
                 kSecAttrAccount: account,
-                kSecAttrServer: server,
-                kSecClass: kSecClassInternetPassword
+                kSecAttrService: service,
+                kSecClass: kSecClassGenericPassword
             ] as [CFString : Any] as CFDictionary
 
             let queryUpdate = [kSecValueData: data] as CFDictionary
@@ -114,61 +129,86 @@ internal class SahhaCredentials {
             let status = SecItemUpdate(query, queryUpdate)
             
             if status == errSecSuccess {
-                print("Sahha | Credentials updated")
-                return value
+                print("Sahha | Credentials \(account) updated")
+                return true
             } else {
                 print("Sahha | Credentials update error")
-                Sahha.postError(message: "Credentials update error", path: "SahhaCredentials", method: "set", body: "if status == errSecSuccess")
+                Sahha.postError(message: " \(account) update error", path: "SahhaCredentials", method: "setData", body: "if status == errSecSuccess")
+                return false
             }
-            return nil
-        } else {
-            return value
+        }
+        
+        print("Sahha | Credentials \(account) set")
+        
+        return true
+    }
+    
+    @discardableResult internal static func setToken(_ token: TokenResponse) -> Bool {
+        
+        let encoder = JSONEncoder()
+        do {
+            let data = try encoder.encode(token)
+            setData(account: "token", service: SahhaConfig.appId, data: data)
+            // Hold the static token
+            Self.token = token
+        } catch {
+            return false
+        }
+        return true
+    }
+    
+    internal static func setDemographic(_ demographic: SahhaDemographic?) {
+        let encoder = JSONEncoder()
+        do {
+            let data = try encoder.encode(demographic)
+            setData(account: "demographic", service: SahhaConfig.appId, data: data)
+        } catch {
         }
     }
     
-    @discardableResult internal static func deleteCredentials() -> Bool {
-        if deleteProfileToken(), deleteRefreshToken() {
-            print ("Sahha | Credentials deleted")
-            return true
-        }
-        return false
-    }
+    // MARK: - Delete
     
-    private static func deleteProfileToken() -> Bool {
-        if delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.apiBasePath, value: self.profileToken) {
-            self.profileToken = nil
-            return true
-        }
-        return false
-    }
-    
-    private static func deleteRefreshToken() -> Bool {
-        if delete(account: Sahha.settings.environment.rawValue, server: SahhaConfig.appId, value: self.refreshToken) {
-            self.refreshToken = nil
-            return true
-        }
-        return false
-    }
-    
-    private static func delete(account: String, server: String, value: String?) -> Bool {
+    private static func delete(account: String, service: String) -> Bool {
             
         let query = [
             kSecAttrAccount: account,
-            kSecAttrServer: server,
-            kSecClass: kSecClassInternetPassword
+            kSecAttrService: service,
+            kSecClass: kSecClassGenericPassword
         ] as [CFString : Any] as CFDictionary
 
         // Delete query from keychain
         let status = SecItemDelete(query)
         
         guard status == errSecSuccess else {
-            print ("Sahha | Credentials delete error")
+            print ("Sahha | Credentials delete \(account) error")
             let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
             print(errorMessage)
-            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "delete", body: "guard status == errSecSuccess else")
+            Sahha.postError(message:" \(account) \(errorMessage)", path: "SahhaCredentials", method: "delete", body: "guard status == errSecSuccess else")
                 return false
         }
         
         return true
     }
+    
+    @discardableResult internal static func deleteCredentials() -> Bool {
+        if deleteToken(), deleteDemographic() {
+            print ("Sahha | Credentials deleted")
+            return true
+        }
+        print ("Sahha | Credentials deleted failed")
+        return false
+    }
+    
+    private static func deleteToken() -> Bool {
+        if delete(account: "token", service: SahhaConfig.appId) {
+            Self.token = nil
+            return true
+        }
+        return false
+    }
+    
+    private static func deleteDemographic() -> Bool {
+        return delete(account: "demographic", service: SahhaConfig.appId)
+    }
+
 }

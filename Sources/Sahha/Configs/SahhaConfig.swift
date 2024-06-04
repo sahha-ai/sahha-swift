@@ -17,16 +17,43 @@ public enum SahhaFramework: String {
 }
 
 public enum SahhaSensor: String, CaseIterable {
+    case gender
+    case date_of_birth
     case sleep
-    case activity
-    case device
-    case heart
-    case blood
-    case oxygen
-    case energy
-    case temperature
-    case body
-    case demographic
+    case step_count
+    case floor_count
+    case heart_rate
+    case resting_heart_rate
+    case walking_heart_rate_average
+    case heart_rate_variability_sdnn
+    case heart_rate_variability_rmssd
+    case blood_pressure_systolic
+    case blood_pressure_diastolic
+    case blood_glucose
+    case vo2_max
+    case oxygen_saturation
+    case respiratory_rate
+    case active_energy_burned
+    case basal_energy_burned
+    case total_energy_burned
+    case basal_metabolic_rate
+    case time_in_daylight
+    case body_temperature
+    case basal_body_temperature
+    case sleeping_wrist_temperature
+    case height
+    case weight
+    case lean_body_mass
+    case body_mass_index
+    case body_fat
+    case body_water_mass
+    case bone_mass
+    case waist_circumference
+    case stand_time
+    case move_time
+    case exercise_time
+    case activity_summary
+    case device_lock
     case exercise
 }
 

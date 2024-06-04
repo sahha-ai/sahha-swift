@@ -10,7 +10,7 @@ struct RefreshTokenRequest: Encodable {
     var refreshToken: String = ""
 }
 
-struct TokenResponse: Decodable {
+struct TokenResponse: Codable {
     var profileToken: String = ""
     var refreshToken: String = ""
     var expiresIn: Int = 0

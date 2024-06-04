@@ -3,7 +3,7 @@
 import Foundation
 import HealthKit
 
-struct HealthLogRequest: Codable {
+struct DataLogRequest: Codable {
     var id: String
     var logType: String
     var dataType: String
@@ -17,11 +17,19 @@ struct HealthLogRequest: Codable {
     var additionalProperties: [String: String]?
     var parentId: String?
     
-    init(_ uuid: UUID, healthType: HealthTypeIdentifier, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
-        self.init(uuid, logType: healthType.sensorType.rawValue, dataType: healthType.rawValue, value: value, unit: healthType.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
+    init(_ uuid: UUID, sensor: SahhaSensor, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+        self.init(uuid, logType: sensor.logType.rawValue, dataType: sensor.rawValue, value: value, unit: sensor.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    init(_ uuid: UUID, sensor: SahhaSensor, dataType: String, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+        self.init(uuid, logType: sensor.logType.rawValue, dataType: dataType, value: value, unit: sensor.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
+    }
+    
+    init(_ uuid: UUID, logType: SensorLogTypeIndentifier, activitySummary: ActivitySummaryIdentifier, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+        self.init(uuid, logType: logType.rawValue, dataType: activitySummary.rawValue, value: value, unit: activitySummary.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
+    }
+    
+    private init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.id = uuid.uuidString
         self.logType = logType
         self.dataType = dataType
@@ -35,6 +43,20 @@ struct HealthLogRequest: Codable {
         self.additionalProperties = additionalProperties
         self.parentId = parentId?.uuidString
     }
+}
+
+enum SensorLogTypeIndentifier: String {
+    case demographic
+    case sleep
+    case activity
+    case device
+    case heart
+    case blood
+    case oxygen
+    case energy
+    case temperature
+    case body
+    case exercise
 }
 
 enum HealthLogPropertyIdentifier: String {
@@ -70,42 +92,26 @@ public enum ActivitySummaryIdentifier: String {
     case exercise_time_daily_goal
     case active_energy_burned_daily_total
     case active_energy_burned_daily_goal
+    
+    internal var unitString: String {
+        return switch self {
+        case .stand_hours_daily_goal,
+        .stand_hours_daily_goal:
+            "hour"
+        case .stand_hours_daily_total,
+        .move_time_daily_total,
+        .move_time_daily_goal,
+        .exercise_time_daily_total,
+        .exercise_time_daily_goal:
+            "minute"
+        case .active_energy_burned_daily_total,
+        .active_energy_burned_daily_goal:
+            "kcal"
+        }
+    }
 }
-
-enum HealthTypeIdentifier: String, CaseIterable {
-    case sleep
-    case step_count
-    case floor_count
-    case heart_rate
-    case resting_heart_rate
-    case walking_heart_rate_average
-    case heart_rate_variability_sdnn
-    case blood_pressure_systolic
-    case blood_pressure_diastolic
-    case blood_glucose
-    case vo2_max
-    case oxygen_saturation
-    case respiratory_rate
-    case active_energy_burned
-    case basal_energy_burned
-    case time_in_daylight
-    case body_temperature
-    case basal_body_temperature
-    case sleeping_wrist_temperature
-    case height
-    case weight
-    case lean_body_mass
-    case body_mass_index
-    case body_fat
-    case waist_circumference
-    case stand_time
-    case move_time
-    case exercise_time
-    case activity_summary
-    case gender
-    case date_of_birth
-    case device_lock
-    case exercise
+    
+extension SahhaSensor {
     
     var keyName: String {
         "sahha_".appending(self.rawValue)
@@ -187,14 +193,25 @@ enum HealthTypeIdentifier: String, CaseIterable {
             HKCharacteristicType.characteristicType(forIdentifier: .biologicalSex)
         case .date_of_birth:
             HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth)
-        case .device_lock:
-            nil
         case .exercise:
             HKWorkoutType.workoutType()
+        case .device_lock:
+            nil
+        case .heart_rate_variability_rmssd:
+            nil
+        case .total_energy_burned:
+            nil
+        case .basal_metabolic_rate:
+            nil
+        case .body_water_mass:
+            nil
+        case .bone_mass:
+            nil
+
         }
     }
     
-    internal var unit: HKUnit {
+    internal var unit: HKUnit? {
         return switch self {
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average:
             .count().unitDivided(by: .minute())
@@ -220,8 +237,10 @@ enum HealthTypeIdentifier: String, CaseIterable {
             .millimeterOfMercury()
         case .blood_glucose:
             HKUnit(from: "mg/dL")
-        case .sleep, .step_count, .floor_count, .body_mass_index, .activity_summary, .gender, .date_of_birth, .device_lock, .exercise:
+        case .sleep, .step_count, .floor_count, .body_mass_index:
             .count()
+        case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .activity_summary, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
+            nil
         }
     }
     
@@ -253,31 +272,31 @@ enum HealthTypeIdentifier: String, CaseIterable {
             "mg/dL"
         case .step_count, .floor_count, .body_mass_index, .activity_summary:
             "count"
-        case .gender, .date_of_birth, .device_lock, .exercise:
+        case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
             "none"
         }
     }
     
-    internal var sensorType: SahhaSensor {
+    internal var logType: SensorLogTypeIndentifier {
         return switch self {
+        case .gender, .date_of_birth:
+            .demographic
         case .sleep:
             .sleep
         case .step_count, .floor_count, .move_time, .stand_time, .exercise_time, .activity_summary:
             .activity
-        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn:
+        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .heart_rate_variability_rmssd:
             .heart
         case .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose:
             .blood
         case .oxygen_saturation, .vo2_max, .respiratory_rate:
             .oxygen
-        case .active_energy_burned, .basal_energy_burned, .time_in_daylight:
+        case .active_energy_burned, .basal_energy_burned, .total_energy_burned, .basal_metabolic_rate, .time_in_daylight:
             .energy
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             .temperature
-        case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference:
+        case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference, .body_water_mass, .bone_mass:
             .body
-        case .gender, .date_of_birth:
-            .demographic
         case .device_lock:
             .device
         case .exercise:

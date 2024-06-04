@@ -6,59 +6,9 @@ import UIKit
 public struct SahhaSettings {
     public let environment: SahhaEnvironment /// sandbox or production
     public var framework: SahhaFramework = .ios_swift /// automatically set by sdk
-    public var sensors: Set<SahhaSensor> /// list of
     
-    public init(environment: SahhaEnvironment, sensors: Set<SahhaSensor>? = nil) {
+    public init(environment: SahhaEnvironment) {
         self.environment = environment
-        if let sensors = sensors {
-            // If list is specified, add only those sensors
-            self.sensors = sensors
-        } else {
-            // If list is nil, add all possible sensors
-            var sensors: Set<SahhaSensor> = []
-            for sensor in SahhaSensor.allCases {
-                sensors.insert(sensor)
-            }
-            self.sensors = sensors
-        }
-    }
-}
-
-internal enum SahhaStorage: String {
-    case timeZone
-    case sdkVersion
-    case appVersion
-    case systemVersion
-    
-    internal var getValue: String {
-        return UserDefaults.standard.string(forKey: self.rawValue) ?? ""
-    }
-    
-    internal func setValue(_ value: String) {
-        UserDefaults.standard.set(value, forKey: self.rawValue)
-    }
-    
-    internal static func loadDemographic() -> SahhaDemographic {
-        var demographic = SahhaDemographic()
-        
-        if let demographicData = UserDefaults.standard.data(forKey: "SahhaDemographic") {
-            let decoder = JSONDecoder()
-            do {
-                demographic = try decoder.decode(SahhaDemographic.self, from: demographicData)
-            } catch {
-            }
-        }
-        
-        return demographic
-    }
-    
-    internal static func saveDemographic(_ demographic: SahhaDemographic?) {
-        let encoder = JSONEncoder()
-        do {
-            let demographicData = try encoder.encode(demographic)
-            UserDefaults.standard.setValue(demographicData, forKey: "SahhaDemographic")
-        } catch {
-        }
     }
 }
 
@@ -67,20 +17,22 @@ public class Sahha {
     internal static var appSecret: String = ""
     internal static var settings = SahhaSettings(environment: .sandbox)
     private static var health = HealthActivity()
-
+    
     public static func configure(_ settings: SahhaSettings, callback: (() -> Void)? = nil) {
         
         Self.settings = settings
-                
-        SahhaCredentials.getCredentials()
-                
+        
+        SahhaCredentials.configure()
+        
+        health.configure()
+        
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
-                                
-        health.configure(sensors: settings.sensors, callback: callback)
         
         print("Sahha | SDK configured")
+        
+        callback?()
     }
     
     @objc static private func onAppOpen() {
@@ -97,7 +49,7 @@ public class Sahha {
     }
     
     public static var profileToken: String? {
-        return SahhaCredentials.profileToken
+        return SahhaCredentials.token?.profileToken
     }
     
     public static func authenticate(appId: String, appSecret: String, externalId: String, callback: @escaping (String?, Bool) -> Void) {
@@ -108,7 +60,7 @@ public class Sahha {
         APIController.postProfileToken(body: ProfileTokenRequest(externalId: externalId)) { result in
             switch result {
             case .success(let response):
-                if SahhaCredentials.setCredentials(profileToken: response.profileToken, refreshToken: response.refreshToken) {
+                if SahhaCredentials.setToken(response) {
                     checkDeviceInfo()
                     callback(nil, true)
                 } else {
@@ -125,7 +77,9 @@ public class Sahha {
     
     public static func authenticate(profileToken: String, refreshToken: String, callback: @escaping (String?, Bool) -> Void) {
         
-        if SahhaCredentials.setCredentials(profileToken: profileToken, refreshToken: refreshToken) {
+        let token = TokenResponse(profileToken: profileToken, refreshToken: refreshToken)
+        
+        if SahhaCredentials.setToken(token) {
             checkDeviceInfo()
             callback(nil, true)
         } else {
@@ -148,7 +102,7 @@ public class Sahha {
     
     private static func checkDeviceInfo() {
         if SahhaCredentials.isAuthenticated {
-            if SahhaStorage.sdkVersion.getValue != SahhaConfig.sdkVersion || SahhaStorage.appVersion.getValue != SahhaConfig.appVersion || SahhaStorage.systemVersion.getValue != SahhaConfig.systemVersion || SahhaStorage.timeZone.getValue != SahhaConfig.timeZone {
+            if SahhaStorage.getValue(.sdkVersion) != SahhaConfig.sdkVersion || SahhaStorage.getValue(.appVersion) != SahhaConfig.appVersion || SahhaStorage.getValue(.systemVersion) != SahhaConfig.systemVersion || SahhaStorage.getValue(.timeZone) != SahhaConfig.timeZone {
                 putDeviceInfo()
             }
         }
@@ -160,32 +114,33 @@ public class Sahha {
             switch result {
             case .success(_):
                 // Save the latest values
-                SahhaStorage.sdkVersion.setValue(SahhaConfig.sdkVersion)
-                SahhaStorage.appVersion.setValue(SahhaConfig.appVersion)
-                SahhaStorage.systemVersion.setValue(SahhaConfig.systemVersion)
-                SahhaStorage.timeZone.setValue(SahhaConfig.timeZone)
+                SahhaStorage.setValue(SahhaConfig.sdkVersion, for: .sdkVersion)
+                SahhaStorage.setValue(SahhaConfig.appVersion, for: .appVersion)
+                SahhaStorage.setValue(SahhaConfig.systemVersion, for: .systemVersion)
+                SahhaStorage.setValue(SahhaConfig.timeZone, for: .timeZone)
             case .failure(let error):
                 print(error.message)
             }
         }
     }
-  
+    
     // MARK: - Demographic
     
-    public static func loadDemographic() -> SahhaDemographic {
-        return SahhaStorage.loadDemographic()
-    }
-    
     public static func getDemographic(callback: @escaping (String?, SahhaDemographic?) -> Void) {
-        APIController.getDemographic { result in
-            switch result {
-            case .success(let response):
-                // Save the result
-                SahhaStorage.saveDemographic(response)
-                callback(nil, response)
-            case .failure(let error):
-                print(error.message)
-                callback(error.message, nil)
+        
+        if let demographic = SahhaCredentials.getDemographic() {
+            callback(nil, demographic)
+        } else {
+            APIController.getDemographic { result in
+                switch result {
+                case .success(let response):
+                    // Save the result
+                    SahhaCredentials.setDemographic(response)
+                    callback(nil, response)
+                case .failure(let error):
+                    print(error.message)
+                    callback(error.message, nil)
+                }
             }
         }
     }
@@ -195,7 +150,7 @@ public class Sahha {
             switch result {
             case .success(_):
                 // Save the result
-                SahhaStorage.saveDemographic(demographic)
+                SahhaCredentials.setDemographic(demographic)
                 callback(nil, true)
             case .failure(let error):
                 print(error.message)
@@ -206,14 +161,40 @@ public class Sahha {
     
     // MARK: - Sensors
     
-    public static func getSensorStatus(callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        health.checkAuthorization { error, status in
+    public static func getSensorStatus(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, SahhaSensorStatus)->Void) {
+        
+        var sensorSet: Set<SahhaSensor>
+        
+        if let sensors = sensors {
+            sensorSet = sensors
+        } else {
+            sensorSet = []
+            for sensor in SahhaSensor.allCases {
+                sensorSet.insert(sensor)
+            }
+        }
+        
+        health.getSensorStatus(sensorSet) { error, status in
             callback(error, status)
         }
     }
     
-    public static func enableSensors(callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        health.activate { error, status in
+    public static func enableSensors(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, SahhaSensorStatus)->Void) {
+        
+        var sensorSet: Set<SahhaSensor>
+        
+        // If sensors are chosen, use those sensors only
+        if let sensors = sensors {
+            sensorSet = sensors
+        } else {
+            // If sensors is empty, use all sensors
+            sensorSet = []
+            for sensor in SahhaSensor.allCases {
+                sensorSet.insert(sensor)
+            }
+        }
+        
+        health.enableSensors(sensorSet) { error, status in
             callback(error, status)
         }
     }
@@ -247,18 +228,12 @@ public class Sahha {
         }
     }
     
-    // MARK: - Test
-    
-    public static func testData() {
-        health.clearTestData()
-        health.postSensorData(healthType: .active_energy_burned)
-    }
-    
     // MARK: - Errors
     
     public static func postError(framework: SahhaFramework = .ios_swift, message: String, path: String, method: String, body: String) {
         let error = SahhaErrorModel(errorLocation: framework.rawValue, errorMessage: message, codePath: path, codeMethod: method, codeBody: body)
         APIController.postError(error, source: .app)
     }
+
 }
 

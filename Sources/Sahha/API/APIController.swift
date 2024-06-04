@@ -28,8 +28,8 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.analysis), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
     }
     
-    static func postHealthLog(body: [HealthLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.health), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
+    static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
+        APIRequest.execute(ApiEndpoint(.dataLog), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
     static func postApiError(_ sahhaError: SahhaErrorModel, responseError: SahhaResponseError) {
@@ -59,7 +59,7 @@ class APIController {
         urlRequest.httpMethod = "POST"
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        if let profileToken = SahhaCredentials.profileToken {
+        if let profileToken = SahhaCredentials.token?.profileToken {
             let authValue = "Profile \(profileToken)"
             urlRequest.addValue(authValue, forHTTPHeaderField: "Authorization")
         }
