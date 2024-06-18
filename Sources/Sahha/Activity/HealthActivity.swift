@@ -34,8 +34,8 @@ public class HealthActivity {
         NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
         
         loadHealthLogData()
-        enableBackgroundDelivery()
         monitorSensors()
+        enableBackgroundDelivery()
     }
     
     internal func clearAllData() {
@@ -50,7 +50,6 @@ public class HealthActivity {
     }
     
     @objc fileprivate func onAppOpen() {
-        postInsights()
     }
     
     @objc fileprivate func onAppClose() {
@@ -147,9 +146,9 @@ public class HealthActivity {
         var genderString: String?
         var birthDateString: String?
         
-        // Get the missing gender
-        if demographic.gender == nil, enabledSensors.contains(.gender) {
-            do {
+        do {
+            // Get the missing gender
+            if demographic.gender == nil, enabledSensors.contains(.gender) {
                 // Get the HealthKit gender
                 let gender = try store.biologicalSex()
                 switch gender.biologicalSex {
@@ -162,22 +161,22 @@ public class HealthActivity {
                 default:
                     break
                 }
-            } catch let error {
-                filterError(error, path: "HealthActivity", method: "getDemographic", body: "let gender = try store.biologicalSex()")
             }
+        } catch let error {
+            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let gender = try store.biologicalSex()")
         }
         
-        // Get the missing birth date
-        if demographic.birthDate == nil, enabledSensors.contains(.date_of_birth) {
-            do {
+        do {
+            // Get the missing birth date
+            if demographic.birthDate == nil, enabledSensors.contains(.date_of_birth) {
                 // Get the HealthKit birth date
                 let dateOfBirth = try store.dateOfBirthComponents()
                 if let dateString = dateOfBirth.date?.toYYYYMMDD {
                     birthDateString = dateString
                 }
-            } catch let error {
-                filterError(error, path: "HealthActivity", method: "getDemographic", body: "let dateOfBirth = try store.dateOfBirthComponents()")
             }
+        } catch let error {
+            filterError(error, path: "HealthActivity", method: "getDemographic", body: "let dateOfBirth = try store.dateOfBirthComponents()")
         }
         
         guard genderString != nil || birthDateString != nil else {
@@ -228,24 +227,20 @@ public class HealthActivity {
             return
         }
         
-        DispatchQueue.global(qos: .background).async { [weak self] in
-            self?.store.requestAuthorization(toShare: [], read: objectTypes) { [weak self] success, error in
-                DispatchQueue.main.async { [weak self] in
-                    if let error = error {
-                        print(error.localizedDescription)
-                        Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "activate", body: "self?.store.requestAuthorization")
-                        callback(error.localizedDescription, .pending)
-                    } else {
-                        if success {
-                            // Monitor new sensors only
-                            for sensor in sensors {
-                                self?.monitorSensor(sensor)
-                            }
-                        }
-                        self?.getSensorStatus(sensors) { error, status in
-                            callback(error, status)
-                        }
+        store.requestAuthorization(toShare: [], read: objectTypes) { [weak self] success, error in
+            if let error = error {
+                print(error.localizedDescription)
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "activate", body: "store.requestAuthorization")
+                callback(error.localizedDescription, .pending)
+            } else {
+                if success {
+                    // Monitor new sensors only
+                    for sensor in sensors {
+                        self?.monitorSensor(sensor)
                     }
+                }
+                self?.getSensorStatus(sensors) { error, status in
+                    callback(error, status)
                 }
             }
         }
@@ -305,9 +300,6 @@ public class HealthActivity {
                 store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] success, error in
                     if let error = error {
                         self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
-                        return
-                    } else {
-                        self?.monitorSensor(sensor)
                     }
                 }
             }
@@ -332,8 +324,13 @@ public class HealthActivity {
             return
         }
         
-        // Only monitor the same sensor once
-        if enabledSensors.contains(sensor) {
+        do {
+            // Only monitor the same sensor once
+            if enabledSensors.contains(sensor) {
+                return
+            }
+        } catch {
+            print(error.localizedDescription)
             return
         }
         
@@ -343,7 +340,7 @@ public class HealthActivity {
                 
                 if let error = errorOrNil {
                     print(error.localizedDescription)
-                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "enableBackgroundDelivery", body: "store.getRequestStatusForAuthorization " + error.localizedDescription)
+                    Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "monitorSensor", body: "store.getRequestStatusForAuthorization " + error.localizedDescription)
                     return
                 }
                 
@@ -353,7 +350,7 @@ public class HealthActivity {
                         // HKObserverQuery is the only query type that can run in the background - we then need to use HKAnchoredObjectQuery once the app is notified of a change to the HealthKit Store
                         let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                             if let error = errorOrNil {
-                                self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "let query = HKObserverQuery " + error.localizedDescription)
+                                self?.filterError(error, path: "HealthActivity", method: "monitorSensor", body: "let query = HKObserverQuery " + error.localizedDescription)
                             } else {
                                 self?.postSensorData(sensor)
                             }
@@ -520,7 +517,12 @@ public class HealthActivity {
     
     private func createDeviceLog(_ isLocked: Bool) {
         
-        guard enabledSensors.contains(.device_lock) else {
+        do {
+            guard enabledSensors.contains(.device_lock) else {
+                return
+            }
+        } catch {
+            print(error.localizedDescription)
             return
         }
         
