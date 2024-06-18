@@ -117,28 +117,36 @@ class APIRequest {
             
             // Token has expired
             if urlResponse.statusCode == 401 {
-                print("Sahha | Authorization token is expired")
                 
-                // Get a new token
-                if let refreshToken = SahhaCredentials.token?.refreshToken {
-                    APIController.postRefreshToken(body: RefreshTokenRequest(refreshToken: refreshToken)) { result in
-                        switch result {
-                        case .success(let response):
-                            // Save new token
-                            SahhaCredentials.setToken(response)
-                            
-                            // Try failed endpoint again
-                            APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
-                        case .failure(let error):
-                            print(error.message)
-                            DispatchQueue.main.async {
-                                onComplete(.failure(error))
+                if endpoint.isAuthRequired {
+                    print("Sahha | Authorization token is expired")
+                    
+                    // Get a new token
+                    if let refreshToken = SahhaCredentials.token?.refreshToken {
+                        APIController.postRefreshToken(body: RefreshTokenRequest(refreshToken: refreshToken)) { result in
+                            switch result {
+                            case .success(let response):
+                                // Save new token
+                                SahhaCredentials.setToken(response)
+                                
+                                // Try failed endpoint again
+                                APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
+                            case .failure(let error):
+                                print(error.message)
+                                DispatchQueue.main.async {
+                                    onComplete(.failure(error))
+                                }
                             }
+                            return
                         }
-                        return
                     }
+                    return
+                } else {
+                    DispatchQueue.main.async {
+                        onComplete(.failure(SahhaError(message: "Sahha | Authorization is not valid")))
+                    }
+                    return
                 }
-                return
             }
             
             if urlResponse.statusCode == 204 {
