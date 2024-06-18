@@ -4,6 +4,11 @@ import Foundation
 import Security
 
 internal class SahhaCredentials {
+    
+    fileprivate enum SahhaCredentialsAccountIdentifier: String {
+        case token
+        case demographic
+    }
 
     private(set) static var token: TokenResponse?
     
@@ -25,7 +30,7 @@ internal class SahhaCredentials {
     
     // MARK: - Get
     
-    private static func getString(account: String, service: String) -> String? {
+    private static func getString(account: SahhaCredentialsAccountIdentifier, service: String) -> String? {
         if let data = getData(account: account, service: service), let string = String(data: data, encoding: .utf8) {
             return string
         }
@@ -33,9 +38,9 @@ internal class SahhaCredentials {
         return nil
     }
     
-    private static func getData(account: String, service: String) -> Data? {
+    private static func getData(account: SahhaCredentialsAccountIdentifier, service: String) -> Data? {
         let query = [
-            kSecAttrAccount: account,
+            kSecAttrAccount: account.rawValue,
             kSecAttrService: service,
             kSecClass: kSecClassGenericPassword,
             kSecReturnData: true
@@ -63,7 +68,7 @@ internal class SahhaCredentials {
     
     internal static func getToken() -> TokenResponse? {
         
-        if let data = getData(account:"token", service: SahhaConfig.appId) {
+        if let data = getData(account: .token, service: SahhaConfig.appId) {
             let decoder = JSONDecoder()
             if let decoded = try? decoder.decode(TokenResponse.self, from: data) {
                 return decoded
@@ -75,7 +80,7 @@ internal class SahhaCredentials {
     
     internal static func getDemographic() -> SahhaDemographic? {
         
-        if let demographicData = getData(account:"demographic", service: SahhaConfig.appId) {
+        if let demographicData = getData(account: .demographic, service: SahhaConfig.appId) {
             let decoder = JSONDecoder()
             if let decoded = try? decoder.decode(SahhaDemographic.self, from: demographicData) {
                 return decoded
@@ -87,27 +92,27 @@ internal class SahhaCredentials {
     
     // MARK: - Set
 
-    private static func setString(account: String, service: String, value: String) -> Bool {
+    private static func setString(account: SahhaCredentialsAccountIdentifier, service: String, value: String) -> Bool {
         if value.isEmpty {
             print("Sahha | Cannot set empty string value")
-            Sahha.postError(message: "\(account) string empty", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
+            Sahha.postError(message: "\(account.rawValue) string empty", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
             return false
         }
         
         guard let data = value.data(using: .utf8) else {
             print("Sahha | Convert string to data error")
-            Sahha.postError(message: "\(account) data invalid", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
+            Sahha.postError(message: "\(account.rawValue) data invalid", path: "SahhaCredentials", method: "setString", body: "guard let data = value.data(using: .utf8) else")
             return false
         }
         
         return setData(account: account, service: service, data: data)
     }
     
-    @discardableResult private static func setData(account: String, service: String, data: Data) -> Bool {
+    @discardableResult private static func setData(account: SahhaCredentialsAccountIdentifier, service: String, data: Data) -> Bool {
 
         let query = [
             kSecValueData: data,
-            kSecAttrAccount: account,
+            kSecAttrAccount: account.rawValue,
             kSecAttrService: service,
             kSecClass: kSecClassGenericPassword
         ] as [CFString : Any] as CFDictionary
@@ -118,7 +123,7 @@ internal class SahhaCredentials {
         if status == errSecDuplicateItem {
             // Item already exist - update it.
             let query = [
-                kSecAttrAccount: account,
+                kSecAttrAccount: account.rawValue,
                 kSecAttrService: service,
                 kSecClass: kSecClassGenericPassword
             ] as [CFString : Any] as CFDictionary
@@ -129,16 +134,16 @@ internal class SahhaCredentials {
             let status = SecItemUpdate(query, queryUpdate)
             
             if status == errSecSuccess {
-                print("Sahha | Credentials \(account) updated")
+                print("Sahha | Credentials \(account.rawValue) updated")
                 return true
             } else {
                 print("Sahha | Credentials update error")
-                Sahha.postError(message: " \(account) update error", path: "SahhaCredentials", method: "setData", body: "if status == errSecSuccess")
+                Sahha.postError(message: " \(account.rawValue) update error", path: "SahhaCredentials", method: "setData", body: "if status == errSecSuccess")
                 return false
             }
         }
         
-        print("Sahha | Credentials \(account) set")
+        print("Sahha | Credentials \(account.rawValue) set")
         
         return true
     }
@@ -148,7 +153,7 @@ internal class SahhaCredentials {
         let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(token)
-            setData(account: "token", service: SahhaConfig.appId, data: data)
+            setData(account: .token, service: SahhaConfig.appId, data: data)
             // Hold the static token
             Self.token = token
         } catch {
@@ -161,17 +166,17 @@ internal class SahhaCredentials {
         let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(demographic)
-            setData(account: "demographic", service: SahhaConfig.appId, data: data)
+            setData(account: .demographic, service: SahhaConfig.appId, data: data)
         } catch {
         }
     }
     
     // MARK: - Delete
     
-    private static func delete(account: String, service: String) -> Bool {
+    private static func delete(account: SahhaCredentialsAccountIdentifier, service: String) -> Bool {
             
         let query = [
-            kSecAttrAccount: account,
+            kSecAttrAccount: account.rawValue,
             kSecAttrService: service,
             kSecClass: kSecClassGenericPassword
         ] as [CFString : Any] as CFDictionary
@@ -180,10 +185,14 @@ internal class SahhaCredentials {
         let status = SecItemDelete(query)
         
         guard status == errSecSuccess else {
-            print ("Sahha | Credentials delete \(account) error")
+            if status == errSecItemNotFound {
+                print ("Sahha | Credentials delete \(account.rawValue) not found")
+                return true
+            }
+            print ("Sahha | Credentials delete \(account.rawValue) error")
             let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
             print(errorMessage)
-            Sahha.postError(message:" \(account) \(errorMessage)", path: "SahhaCredentials", method: "delete", body: "guard status == errSecSuccess else")
+            Sahha.postError(message:" \(account.rawValue) \(errorMessage)", path: "SahhaCredentials", method: "delete", body: "guard status == errSecSuccess else")
                 return false
         }
         
@@ -200,7 +209,7 @@ internal class SahhaCredentials {
     }
     
     private static func deleteToken() -> Bool {
-        if delete(account: "token", service: SahhaConfig.appId) {
+        if delete(account: .token, service: SahhaConfig.appId) {
             Self.token = nil
             return true
         }
@@ -208,7 +217,7 @@ internal class SahhaCredentials {
     }
     
     private static func deleteDemographic() -> Bool {
-        return delete(account: "demographic", service: SahhaConfig.appId)
+        return delete(account: .demographic, service: SahhaConfig.appId)
     }
 
 }
