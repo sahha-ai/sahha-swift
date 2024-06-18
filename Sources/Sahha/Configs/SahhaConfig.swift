@@ -74,7 +74,7 @@ class SahhaConfig {
     }
     
     static var apiBasePath: String {
-        switch Sahha.settings.environment {
+        switch Sahha.settings?.environment ?? .sandbox {
         case .production:
             return "https://api.sahha.ai/api/v1/"
         case .sandbox:

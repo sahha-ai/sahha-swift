@@ -40,7 +40,7 @@ class APIController {
                 
         var error = sahhaError
         error.errorSource = source.rawValue
-        error.sdkId = Sahha.settings.framework.rawValue
+        error.sdkId = Sahha.settings?.framework.rawValue ?? SahhaFramework.ios_swift.rawValue
         error.sdkVersion = SahhaConfig.sdkVersion
         error.appId = SahhaConfig.appId
         error.appVersion = SahhaConfig.appVersion

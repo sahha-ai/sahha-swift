@@ -15,11 +15,26 @@ public struct SahhaSettings {
 public class Sahha {
     internal static var appId: String = ""
     internal static var appSecret: String = ""
-    internal static var settings = SahhaSettings(environment: .sandbox)
+    internal static var settings: SahhaSettings? = nil
     private static var health = HealthActivity()
     
     public static func configure(_ settings: SahhaSettings, callback: (() -> Void)? = nil) {
         
+        // Check if settings have been set already
+        guard Self.settings == nil else {
+            
+            // Change settings only
+            Self.settings = settings
+            
+            // Avoid configuring SDK twice
+            print("Sahha | SDK reconfigured")
+            
+            // Do optional callback
+            callback?()
+            return
+        }
+        
+        // Settings are empty - set them and continue with configure
         Self.settings = settings
         
         SahhaCredentials.configure()
@@ -32,6 +47,7 @@ public class Sahha {
         
         print("Sahha | SDK configured")
         
+        // Do optional callback
         callback?()
     }
     
@@ -109,7 +125,7 @@ public class Sahha {
     }
     
     private static func putDeviceInfo() {
-        let body = SahhaErrorModel(sdkId: settings.framework.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
+        let body = SahhaErrorModel(sdkId: settings?.framework.rawValue ?? SahhaFramework.ios_swift.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
         APIController.putDeviceInfo(body: body) { result in
             switch result {
             case .success(_):
