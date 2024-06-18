@@ -324,13 +324,8 @@ public class HealthActivity {
             return
         }
         
-        do {
-            // Only monitor the same sensor once
-            if enabledSensors.contains(sensor) {
-                return
-            }
-        } catch {
-            print(error.localizedDescription)
+        // Only monitor the same sensor once
+        if enabledSensors.contains(sensor) {
             return
         }
         
@@ -517,12 +512,7 @@ public class HealthActivity {
     
     private func createDeviceLog(_ isLocked: Bool) {
         
-        do {
-            guard enabledSensors.contains(.device_lock) else {
-                return
-            }
-        } catch {
-            print(error.localizedDescription)
+        guard enabledSensors.contains(.device_lock) else {
             return
         }
         
