@@ -22,9 +22,6 @@ internal class SahhaCredentials {
     internal static func configure() {
         if let savedToken = Self.getToken() {
             token = savedToken
-            print("Sahha | Credentials OK")
-        } else {
-            print("Sahha | Credentials missing")
         }
     }
     
@@ -50,9 +47,13 @@ internal class SahhaCredentials {
         let status = SecItemCopyMatching(query, &result)
         
         guard status == errSecSuccess else {
-            print ("Sahha | Credentials get error")
-            let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
-            Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "guard status == errSecSuccess else")
+            if status == errSecItemNotFound {
+                print ("Sahha | Credentials not available for \(account.rawValue)")
+            } else {
+                print ("Sahha | Credentials get error for \(account.rawValue)")
+                let errorMessage = SecCopyErrorMessageString(status, nil) as String? ?? "SecCopyErrorMessageString"
+                Sahha.postError(message: errorMessage, path: "SahhaCredentials", method: "get", body: "guard status == errSecSuccess else")
+            }
                 return nil
         }
         if let data = result as? Data {
