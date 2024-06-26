@@ -59,7 +59,7 @@ enum SensorLogTypeIndentifier: String {
     case exercise
 }
 
-enum HealthLogPropertyIdentifier: String {
+enum DataLogPropertyIdentifier: String {
     case bodyPosition
     case measurementLocation
     case measurementMethod

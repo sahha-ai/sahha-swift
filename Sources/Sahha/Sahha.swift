@@ -16,7 +16,7 @@ public class Sahha {
     internal static var appId: String = ""
     internal static var appSecret: String = ""
     internal static var settings: SahhaSettings? = nil
-    private static var health = HealthActivity()
+    internal static var health = HealthActivity()
     
     public static func configure(_ settings: SahhaSettings, callback: (() -> Void)? = nil) {
         
@@ -105,7 +105,9 @@ public class Sahha {
     
     public static func deauthenticate(callback: @escaping (String?, Bool) -> Void) {
         if SahhaCredentials.deleteCredentials() {
-            health.clearAllData()
+            
+            health.clearData()
+            
             callback(nil, true)
             return
         }
