@@ -79,11 +79,11 @@ class SahhaConfig {
             return "https://api.sahha.ai/api/v1/"
         case .sandbox:
             return "https://sandbox-api.sahha.ai/api/v1/"
-            //return "https://development-api.sahha.ai/api/v1/"
+            // return "https://development-api.sahha.ai/api/v1/"
         }
     }
     
-    static let sdkVersion: String = "0.4.3"
+    static let sdkVersion: String = "0.4.4"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
