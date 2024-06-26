@@ -44,11 +44,12 @@ public class Sahha {
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
-        
+                
         print("Sahha | SDK configured")
         
         // Do optional callback
         callback?()
+        
     }
     
     @objc static private func onAppOpen() {
@@ -68,6 +69,18 @@ public class Sahha {
         return SahhaCredentials.token?.profileToken
     }
     
+    private static func setToken(_ token: TokenResponse, callback: @escaping (String?, Bool) -> Void) {
+        if SahhaCredentials.setToken(token) {
+            putDeviceInfo()
+            health.querySensors()
+            callback(nil, true)
+        } else {
+            let errorMessage: String = "Sahha Credentials could not be set"
+            Sahha.postError(framework: .ios_swift, message: errorMessage, path: "Sahha", method: "authenticate", body: "hidden")
+            callback(errorMessage, false)
+        }
+    }
+    
     public static func authenticate(appId: String, appSecret: String, externalId: String, callback: @escaping (String?, Bool) -> Void) {
         
         Self.appId = appId
@@ -76,14 +89,7 @@ public class Sahha {
         APIController.postProfileToken(body: ProfileTokenRequest(externalId: externalId)) { result in
             switch result {
             case .success(let response):
-                if SahhaCredentials.setToken(response) {
-                    checkDeviceInfo()
-                    callback(nil, true)
-                } else {
-                    let errorMessage: String = "Sahha Credentials could not be set"
-                    Sahha.postError(framework: .ios_swift, message: errorMessage, path: "Sahha", method: "authenticate", body: "hidden")
-                    callback(errorMessage, false)
-                }
+                setToken(response, callback: callback)
             case .failure(let error):
                 print(error.message)
                 callback(error.message, false)
@@ -94,15 +100,7 @@ public class Sahha {
     public static func authenticate(profileToken: String, refreshToken: String, callback: @escaping (String?, Bool) -> Void) {
         
         let token = TokenResponse(profileToken: profileToken, refreshToken: refreshToken)
-        
-        if SahhaCredentials.setToken(token) {
-            checkDeviceInfo()
-            callback(nil, true)
-        } else {
-            let errorMessage: String = "Sahha Credentials could not be set"
-            Sahha.postError(framework: .ios_swift, message: errorMessage, path: "Sahha", method: "authenticate", body: "hidden")
-            callback(errorMessage, false)
-        }
+        setToken(token, callback: callback)
     }
     
     public static func deauthenticate(callback: @escaping (String?, Bool) -> Void) {
