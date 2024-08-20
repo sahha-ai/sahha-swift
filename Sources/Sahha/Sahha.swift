@@ -177,40 +177,16 @@ public class Sahha {
     
     // MARK: - Sensors
     
-    public static func getSensorStatus(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, SahhaSensorStatus)->Void) {
+    public static func getSensorStatus(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
-        var sensorSet: Set<SahhaSensor>
-        
-        if let sensors = sensors {
-            sensorSet = sensors
-        } else {
-            sensorSet = []
-            for sensor in SahhaSensor.allCases {
-                sensorSet.insert(sensor)
-            }
-        }
-        
-        health.getSensorStatus(sensorSet) { error, status in
+        health.getSensorStatus(sensors) { error, status in
             callback(error, status)
         }
     }
     
-    public static func enableSensors(_ sensors: Set<SahhaSensor>? = nil, callback: @escaping (String?, SahhaSensorStatus)->Void) {
+    public static func enableSensors(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
-        var sensorSet: Set<SahhaSensor>
-        
-        // If sensors are chosen, use those sensors only
-        if let sensors = sensors {
-            sensorSet = sensors
-        } else {
-            // If sensors is empty, use all sensors
-            sensorSet = []
-            for sensor in SahhaSensor.allCases {
-                sensorSet.insert(sensor)
-            }
-        }
-        
-        health.enableSensors(sensorSet) { error, status in
+        health.enableSensors(sensors) { error, status in
             callback(error, status)
         }
     }
