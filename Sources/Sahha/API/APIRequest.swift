@@ -133,6 +133,9 @@ class APIRequest {
                                 APIRequest.execute(endpoint, method, body: body, decodable: decodable, onComplete: onComplete)
                             case .failure(let error):
                                 print(error.message)
+                                
+                                // Delete bad token
+                                SahhaCredentials.deleteCredentials()
                                 DispatchQueue.main.async {
                                     onComplete(.failure(error))
                                 }
