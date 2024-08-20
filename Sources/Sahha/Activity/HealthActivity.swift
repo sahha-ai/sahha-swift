@@ -146,12 +146,12 @@ fileprivate actor DataManager {
     
 }
 
-fileprivate func setInsightDate(_ date: Date?) {
-    UserDefaults.standard.set(date: date, forKey: "sahha_activity_summary_date")
+fileprivate func setAnchorDate(_ date: Date?, sensor: SahhaSensor) {
+    UserDefaults.standard.set(date: date, forKey: sensor.keyName)
 }
 
-fileprivate func getInsightDate() -> Date? {
-    UserDefaults.standard.date(forKey: "sahha_activity_summary_date")
+fileprivate func getAnchorDate(sensor: SahhaSensor) -> Date? {
+    UserDefaults.standard.date(forKey: sensor.keyName)
 }
 
 fileprivate func setAnchor(_ anchor: HKQueryAnchor?, sensor: SahhaSensor) {
@@ -214,7 +214,7 @@ internal class HealthActivity {
         for sensor in SahhaSensor.allCases {
             setAnchor(nil, sensor: sensor)
         }
-        setInsightDate(nil)
+        setAnchorDate(nil, sensor: .activity_summary)
         Task {
             await Self.dataManager.clearData()
         }
@@ -331,6 +331,11 @@ internal class HealthActivity {
     /// Activate Health - callback with TRUE or FALSE for success
     public func enableSensors(_ sensors: Set<SahhaSensor>, _ callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
+        guard Self.isAvailable else {
+            callback(nil, .unavailable)
+            return
+        }
+        
         var objectTypes: Set<HKObjectType> = []
         for healthType in sensors {
             if let objectType = healthType.objectType {
@@ -362,10 +367,10 @@ internal class HealthActivity {
         }
     }
     
-    internal func getSensorStatus(_ sensors: Set<SahhaSensor>, _ callback: ((String?, SahhaSensorStatus)->Void)? = nil) {
+    internal func getSensorStatus(_ sensors: Set<SahhaSensor>, _ callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
         guard Self.isAvailable else {
-            callback?(nil, .unavailable)
+            callback(nil, .unavailable)
             return
         }
         
@@ -377,7 +382,7 @@ internal class HealthActivity {
         }
         
         guard objectTypes.isEmpty == false else {
-            callback?("Sahha | Health data types not specified", .pending)
+            callback("Sahha | Health data types not specified", .pending)
             return
         }
         
@@ -399,7 +404,7 @@ internal class HealthActivity {
                     sensorStatus = .pending
                 }
             }
-            callback?(errorMessage, sensorStatus)
+            callback(errorMessage, sensorStatus)
         }
     }
     
@@ -509,69 +514,172 @@ internal class HealthActivity {
             return
         }
         
-        if let sampleType = sensor.objectType as? HKSampleType {
-            let startDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-            let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
-            let anchor = getAnchor(sensor: sensor)
-            let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: HKObjectQueryNoLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
-                if let error = errorOrNil {
-                    filterError(error, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
-                    Task {
-                        await Self.dataManager.addDataLogs([], sensor: sensor)
-                    }
-                    return
-                }
-                guard let newAnchor = anchorOrNil, let samples = samplesOrNil, samples.isEmpty == false else {
-                    Task {
-                        await Self.dataManager.addDataLogs([], sensor: sensor)
-                    }
-                    return
-                }
-                
-                setAnchor(newAnchor, sensor: sensor)
-                
-                switch sensor.logType {
-                case .sleep:
-                    guard let categorySamples = samples as? [HKCategorySample] else {
-                        print("Sahha | Sleep samples in incorrect format")
-                        Task {
-                            await Self.dataManager.addDataLogs([], sensor: sensor)
+        if let objectType = sensor.objectType {
+            
+            Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { status, error in
+                switch status {
+                case .unnecessary:
+                    if let sampleType = sensor.objectType as? HKSampleType {
+                        let startDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+                        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: HKQueryOptions.strictEndDate)
+                        let anchor = getAnchor(sensor: sensor)
+                        let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: HKObjectQueryNoLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
+                            if let error = errorOrNil {
+                                filterError(error, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
+                                Task {
+                                    await Self.dataManager.addDataLogs([], sensor: sensor)
+                                }
+                                return
+                            }
+                            guard let newAnchor = anchorOrNil, let samples = samplesOrNil, samples.isEmpty == false else {
+                                Task {
+                                    await Self.dataManager.addDataLogs([], sensor: sensor)
+                                }
+                                return
+                            }
+                            
+                            setAnchor(newAnchor, sensor: sensor)
+                            
+                            switch sensor.logType {
+                            case .sleep:
+                                guard let categorySamples = samples as? [HKCategorySample] else {
+                                    print("Sahha | Sleep samples in incorrect format")
+                                    Task {
+                                        await Self.dataManager.addDataLogs([], sensor: sensor)
+                                    }
+                                    return
+                                }
+                                self?.createSleepLogs(sensor: sensor, samples: categorySamples)
+                            case .exercise:
+                                guard let workoutSamples = samples as? [HKWorkout] else {
+                                    print("Sahha | Exercise samples in incorrect format")
+                                    Task {
+                                        await Self.dataManager.addDataLogs([], sensor: sensor)
+                                    }
+                                    return
+                                }
+                                self?.createExerciseLogs(sensor: sensor, samples: workoutSamples)
+                            default:
+                                guard let quantitySamples = samples as? [HKQuantitySample] else {
+                                    print("Sahha | \(sensor.rawValue) samples in incorrect format")
+                                    Task {
+                                        await Self.dataManager.addDataLogs([], sensor: sensor)
+                                    }
+                                    return
+                                }
+                                self?.createHealthLogs(sensor: sensor, samples: quantitySamples)
+                            }
                         }
-                        return
-                    }
-                    self?.createSleepLogs(sensor: sensor, samples: categorySamples)
-                case .exercise:
-                    guard let workoutSamples = samples as? [HKWorkout] else {
-                        print("Sahha | Exercise samples in incorrect format")
                         Task {
-                            await Self.dataManager.addDataLogs([], sensor: sensor)
+                            await Self.dataManager.querySensor(sensor)
+                            Self.store.execute(query)
                         }
-                        return
                     }
-                    self?.createExerciseLogs(sensor: sensor, samples: workoutSamples)
                 default:
-                    guard let quantitySamples = samples as? [HKQuantitySample] else {
-                        print("Sahha | \(sensor.rawValue) samples in incorrect format")
-                        Task {
-                            await Self.dataManager.addDataLogs([], sensor: sensor)
-                        }
-                        return
-                    }
-                    self?.createHealthLogs(sensor: sensor, samples: quantitySamples)
+                    break
                 }
-            }
-            Task {
-                await Self.dataManager.querySensor(sensor)
-                Self.store.execute(query)
             }
         }
     }
     
     internal func postInsights() {
-        
+                
         guard Self.isAvailable, Sahha.isAuthenticated else {
             return
         }
+        
+        /*
+        if let quantityType = SahhaSensor.basal_energy_burned.objectType as? HKQuantityType {
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: [quantityType]) { status, error in
+            
+            switch status {
+            case .unnecessary:
+                let today = Date()
+                // Set startDate to a week prior if date is nil (first app launch)
+                let startDate = getAnchorDate(sensor: .basal_energy_burned) ?? Calendar.current.date(byAdding: .day, value: -31, to: today) ?? today
+                let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
+                
+                // Only check once per day
+                if Calendar.current.isDateInToday(startDate) == false, today > startDate {
+                    
+                    // Prevent duplication
+                    setAnchorDate(today, sensor: .basal_energy_burned)
+                    
+                    let startComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: startDate)
+                    let endComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: endDate)
+                    
+                    let predicate = HKQuery.predicate(forActivitySummariesBetweenStart: startComponents, end: endComponents)
+                    
+                    let query = HKActivitySummaryQuery(predicate: predicate) { query, result, error in
+                        
+                        let query = HKStatisticsQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: .cumulativeSum) { (query, statisticsOrNil, errorOrNil) in
+                            
+                        if let error = error {
+                            // Reset insight date
+                            setAnchorDate(startDate, sensor: .basal_energy_burned)
+                            filterError(error, path: "HealthActivity", method: "getActivitySummary", body: "")
+                            Task {
+                                await Self.dataManager.querySensor(.activity_summary)
+                            }
+                            return
+                        }
+                        
+                        guard let result = result, !result.isEmpty else {
+                            print("Sahha | Health Activity Summary is empty")
+                            Task {
+                                await Self.dataManager.querySensor(.activity_summary)
+                            }
+                            return
+                        }
+                        
+                        Task {
+                            
+                            var requests: [DataLogRequest] = []
+                            
+                            for activitySummary in result {
+                                
+                                let logType = SensorLogTypeIndentifier.energy
+                                let date = activitySummary.dateComponents(for: Calendar.current).date ?? Date()
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_total, value: activitySummary.appleStandHours.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                
+                                if #available(iOS 16.0, *), let value = activitySummary.standHoursGoal?.doubleValue(for: .count()) {
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                } else {
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: activitySummary.appleStandHoursGoal.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                }
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_total, value: activitySummary.appleMoveTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_goal, value: activitySummary.appleMoveTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_total, value: activitySummary.appleExerciseTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                
+                                if #available(iOS 16.0, *), let value = activitySummary.exerciseTimeGoal?.doubleValue(for: .minute()) {
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                } else {
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                }
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_total, value: activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_goal, value: activitySummary.activeEnergyBurnedGoal.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: "recording_method_automatically_recorded", deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                            }
+                            
+                            await Self.dataManager.addDataLogs(requests, sensor: .activity_summary)
+                        }
+                    }
+                    
+                    Task {
+                        await Self.dataManager.querySensor(.activity_summary)
+                        Self.store.execute(query)
+                    }
+                }
+            default:
+                return
+            }
+        }
+        */
         
         Self.store.getRequestStatusForAuthorization(toShare: [], read: [SahhaSensor.activity_summary.objectType!]) { status, error in
             
@@ -579,14 +687,14 @@ internal class HealthActivity {
             case .unnecessary:
                 let today = Date()
                 // Set startDate to a week prior if date is nil (first app launch)
-                let startDate = getInsightDate() ?? Calendar.current.date(byAdding: .day, value: -31, to: today) ?? today
+                let startDate = getAnchorDate(sensor: .activity_summary) ?? Calendar.current.date(byAdding: .day, value: -31, to: today) ?? today
                 let endDate = Calendar.current.date(byAdding: .day, value: -1, to: today) ?? today
                 
                 // Only check once per day
                 if Calendar.current.isDateInToday(startDate) == false, today > startDate {
                     
                     // Prevent duplication
-                    setInsightDate(today)
+                    setAnchorDate(today, sensor: .activity_summary)
                     
                     let startComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: startDate)
                     let endComponents = Calendar.current.dateComponents([.day, .month, .year, .calendar], from: endDate)
@@ -597,7 +705,7 @@ internal class HealthActivity {
                         
                         if let error = error {
                             // Reset insight date
-                            setInsightDate(startDate)
+                            setAnchorDate(startDate, sensor: .activity_summary)
                             filterError(error, path: "HealthActivity", method: "getActivitySummary", body: "")
                             Task {
                                 await Self.dataManager.querySensor(.activity_summary)
