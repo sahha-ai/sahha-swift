@@ -17,26 +17,26 @@ struct DataLogRequest: Codable {
     var additionalProperties: [String: String]?
     var parentId: String?
     
-    init(_ uuid: UUID, sensor: SahhaSensor, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    init(_ uuid: UUID, sensor: SahhaSensor, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.init(uuid, logType: sensor.logType.rawValue, dataType: sensor.rawValue, value: value, unit: sensor.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    init(_ uuid: UUID, sensor: SahhaSensor, dataType: String, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    init(_ uuid: UUID, sensor: SahhaSensor, dataType: String, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.init(uuid, logType: sensor.logType.rawValue, dataType: dataType, value: value, unit: sensor.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    init(_ uuid: UUID, logType: SensorLogTypeIndentifier, activitySummary: ActivitySummaryIdentifier, value: Double, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    init(_ uuid: UUID, logType: SensorLogTypeIndentifier, activitySummary: ActivitySummaryIdentifier, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.init(uuid, logType: logType.rawValue, dataType: activitySummary.rawValue, value: value, unit: activitySummary.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    private init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: String, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    private init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.id = uuid.uuidString
         self.logType = logType
         self.dataType = dataType
         self.value = value
         self.unit = unit
         self.source = source
-        self.recordingMethod = recordingMethod
+        self.recordingMethod = recordingMethod.rawValue
         self.deviceType = deviceType
         self.startDateTime = startDate.toDateTime
         self.endDateTime = endDate.toDateTime
@@ -81,6 +81,12 @@ enum BloodRelationToMeal: String {
     case unknown
     case before_meal
     case after_meal
+}
+
+enum RecordingMethodIdentifier: String {
+    case automatically_recorded
+    case manual_entry
+    case unknown
 }
 
 public enum ActivitySummaryIdentifier: String {
