@@ -24,8 +24,16 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getAnalysis(body: AnalysisRequest, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
-        APIRequest.execute(ApiEndpoint(.analysis), .post, encodable: body, decodable: DataResponse.self, onComplete: onComplete)
+    static func getScores(types: [SahhaScoreTypeIdentifier], dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+        var queryParams: [(key: String, value: String)] = []
+        for type in types {
+            queryParams.append((key: "types", value: type.rawValue))
+        }
+        if let startDateTime = dates?.startDate.toDateTime, let endDateTime = dates?.endDate.toDateTime {
+            queryParams.append((key: "startDateTime", value: startDateTime))
+            queryParams.append((key: "endDateTime", value: endDateTime))
+        }
+        APIRequest.execute(ApiEndpoint(.score, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
     static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {

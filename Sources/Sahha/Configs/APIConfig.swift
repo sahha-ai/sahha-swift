@@ -33,7 +33,7 @@ class ApiEndpoint {
         case refreshToken = "oauth/profile/refreshToken"
         case deviceInfo = "profile/deviceInformation"
         case demographic = "profile/demographic"
-        case analysis = "profile/analysis"
+        case score = "profile/score"
         case dataLog = "profile/data/log"
     }
     
@@ -60,7 +60,8 @@ class ApiEndpoint {
         self.path = SahhaConfig.apiBasePath + urlPath
     }
     
-    init(_ endpointPath: EndpointPath, _ queryParams: [String:String]) {
+    
+    init(_ endpointPath: EndpointPath, _ queryParams: [(key: String, value: String)]) {
         self.endpointPath = endpointPath
         var urlPath = endpointPath.rawValue
         for (index, queryParam) in queryParams.enumerated() {
