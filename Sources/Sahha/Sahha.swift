@@ -193,7 +193,7 @@ public class Sahha {
     
     // MARK: - Analyzation
     
-    public static func getScores(_ scores: [SahhaScoreTypeIdentifier], dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
+    public static func getScores(_ scores: Set<SahhaScoreTypeIdentifier>, dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
         APIController.getScores(scores, dates: dates) { result in
             switch result {
             case .success(let response):

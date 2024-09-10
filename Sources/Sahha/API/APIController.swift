@@ -24,7 +24,7 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getScores(_ scores: [SahhaScoreTypeIdentifier], dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+    static func getScores(_ scores: Set<SahhaScoreTypeIdentifier>, dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
         var queryParams: [(key: String, value: String)] = []
         for score in scores {
             queryParams.append((key: "types", value: score.rawValue))
