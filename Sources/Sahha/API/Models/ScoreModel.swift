@@ -2,7 +2,7 @@
 
 import Foundation
 
-public enum SahhaScoreTypeIdentifier: String {
+public enum SahhaScoreType: String {
     case wellbeing
     case activity
     case sleep

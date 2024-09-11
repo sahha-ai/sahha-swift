@@ -24,10 +24,10 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getScores(_ scores: Set<SahhaScoreTypeIdentifier>, dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+    static func getScores(_ types: Set<SahhaScoreType>, dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
         var queryParams: [(key: String, value: String)] = []
-        for score in scores {
-            queryParams.append((key: "types", value: score.rawValue))
+        for type in types {
+            queryParams.append((key: "types", value: type.rawValue))
         }
         if let startDateTime = dates?.startDate.toDateTime, let endDateTime = dates?.endDate.toDateTime {
             queryParams.append((key: "startDateTime", value: startDateTime))
