@@ -197,19 +197,36 @@ public class Sahha {
         APIController.getScores(types, dates: dates) { result in
             switch result {
             case .success(let response):
-                if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
-                   let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
-                   let prettyPrintedString = String(data: data, encoding: .utf8) {
-                    callback(nil, prettyPrintedString)
-                } else {
-                    Sahha.postError(message: "Analyzation data encoding error", path: "Sahha", method: "analyze", body: "if let object = try? JSONSerialization.jsonObject")
-                    callback("Analyzation data encoding error", nil)
-                }
+                let serializeResult = APIController.trySerializeJson(response)
+                callback(serializeResult.error, serializeResult.value)
             case .failure(let error):
                 callback(error.message, nil)
             }
         }
     }
+    
+    public static func getBiomarkers(
+        categories: Set<SahhaBiomarkerCategory>,
+        types: Set<SahhaBiomarkerType>,
+        dates:(startDate: Date, endDate: Date)? = nil,
+        callback: @escaping (String?, String?) -> Void
+    ) {
+        APIController.getBiomarkers(
+            categories: categories,
+            types: types,
+            dates: dates
+        ) { result in
+            switch result {
+            case .success(let response):
+                let serializeResult = APIController.trySerializeJson(response)
+                callback(serializeResult.error, serializeResult.value)
+            case .failure(let error):
+                callback(error.message, nil)
+            }
+        }
+    }
+    
+    
     
     // MARK: - Settings
     

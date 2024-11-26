@@ -34,6 +34,7 @@ class ApiEndpoint {
         case deviceInfo = "profile/deviceInformation"
         case demographic = "profile/demographic"
         case score = "profile/score"
+        case biomarker = "profile/biomarker"
         case dataLog = "profile/data/log"
     }
     

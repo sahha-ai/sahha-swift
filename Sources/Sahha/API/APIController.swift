@@ -36,6 +36,28 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.score, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
+    static func getBiomarkers(
+        categories: Set<SahhaBiomarkerCategory>,
+        types: Set<SahhaBiomarkerType>,
+        dates:(startDate: Date, endDate: Date)? = nil,
+        _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
+    ) {
+        var queryParams: [(key: String, value: String)] = []
+        
+        for category in categories {
+            queryParams.append((key: "categories", value: category.rawValue))
+        }
+        for type in types {
+            queryParams.append((key: "types", value: type.rawValue))
+        }
+        
+        if let startDateTime = dates?.startDate.toDateTime, let endDateTime = dates?.endDate.toDateTime {
+            queryParams.append((key: "startDateTime", value: startDateTime))
+            queryParams.append((key: "endDateTime", value: endDateTime))
+        }
+        APIRequest.execute(ApiEndpoint(.biomarker, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
+    }
+    
     static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.dataLog), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
@@ -79,5 +101,17 @@ class APIController {
         
         URLSession.shared.dataTask(with: urlRequest) { (_, _, _) in
         }.resume()
+    }
+    
+    static func trySerializeJson(_ response: DataResponse)
+    -> (error: String?, value: String?) {
+        if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
+           let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
+           let prettyPrintedString = String(data: data, encoding: .utf8) {
+            return (nil, prettyPrintedString)
+        } else {
+            Sahha.postError(message: "Data encoding error", path: "APIController", method: "trySerializeJson", body: "if let object = try? JSONSerialization.jsonObject")
+            return ("Data encoding error", nil)
+        }
     }
 }
