@@ -191,7 +191,7 @@ public class Sahha {
         }
     }
     
-    // MARK: - Analyzation
+    // MARK: - Scores
     
     public static func getScores(_ types: Set<SahhaScoreType>, dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
         APIController.getScores(types, dates: dates) { result in
@@ -204,6 +204,8 @@ public class Sahha {
             }
         }
     }
+    
+    // MARK: - Biomarkers
     
     public static func getBiomarkers(
         categories: Set<SahhaBiomarkerCategory>,
