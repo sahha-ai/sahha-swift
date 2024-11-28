@@ -197,8 +197,8 @@ public class Sahha {
         APIController.getScores(types, dates: dates) { result in
             switch result {
             case .success(let response):
-                let serializeResult = APIController.trySerializeJson(response)
-                callback(serializeResult.error, serializeResult.value)
+                let json = APIController.encodeJson(response)
+                callback(json.error, json.value)
             case .failure(let error):
                 callback(error.message, nil)
             }
@@ -220,8 +220,8 @@ public class Sahha {
         ) { result in
             switch result {
             case .success(let response):
-                let serializeResult = APIController.trySerializeJson(response)
-                callback(serializeResult.error, serializeResult.value)
+                let json = APIController.encodeJson(response)
+                callback(json.error, json.value)
             case .failure(let error):
                 callback(error.message, nil)
             }
