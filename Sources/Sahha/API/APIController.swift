@@ -103,13 +103,14 @@ class APIController {
         }.resume()
     }
     
-    static func encodeJson(_ response: DataResponse)
+    static func getJsonString(_ response: DataResponse)
     -> (error: String?, value: String?) {
-        if let data = try? JSONEncoder().encode(response.data), let string = String(data: data, encoding: .utf8) {
+        if let string = String(data: response.data, encoding: .utf8) {
             return (nil, string)
         } else {
-            Sahha.postError(message: "Data encoding error", path: "APIController", method: "trySerializeJson", body: "if let data = try? JSONEncoder().encode(response.data)")
-            return ("Data encoding error", nil)
+            let errorString: String = "Data could not be converted to JSON string."
+            Sahha.postError(message: errorString, path: "APIController", method: "trySerializeJson", body: "if let data = try? JSONEncoder().encode(response.data)")
+            return (errorString, nil)
         }
     }
 }
