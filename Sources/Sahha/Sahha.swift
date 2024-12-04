@@ -178,38 +178,51 @@ public class Sahha {
     // MARK: - Sensors
     
     public static func getSensorStatus(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        
-        health.getSensorStatus(sensors) { error, status in
-            callback(error, status)
-        }
+        health.getSensorStatus(sensors, callback)
     }
     
     public static func enableSensors(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        
-        health.enableSensors(sensors) { error, status in
-            callback(error, status)
-        }
+        health.enableSensors(sensors, callback)
     }
     
-    // MARK: - Analyzation
+    // MARK: - Scores
     
     public static func getScores(_ types: Set<SahhaScoreType>, dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
         APIController.getScores(types, dates: dates) { result in
             switch result {
             case .success(let response):
-                if let object = try? JSONSerialization.jsonObject(with: response.data, options: []),
-                   let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted]),
-                   let prettyPrintedString = String(data: data, encoding: .utf8) {
-                    callback(nil, prettyPrintedString)
-                } else {
-                    Sahha.postError(message: "Analyzation data encoding error", path: "Sahha", method: "analyze", body: "if let object = try? JSONSerialization.jsonObject")
-                    callback("Analyzation data encoding error", nil)
-                }
+                let json = APIController.getJsonString(response)
+                callback(json.error, json.value)
             case .failure(let error):
                 callback(error.message, nil)
             }
         }
     }
+    
+    // MARK: - Biomarkers
+    
+    public static func getBiomarkers(
+        categories: Set<SahhaBiomarkerCategory>,
+        types: Set<SahhaBiomarkerType>,
+        dates:(startDate: Date, endDate: Date)? = nil,
+        callback: @escaping (String?, String?) -> Void
+    ) {
+        APIController.getBiomarkers(
+            categories: categories,
+            types: types,
+            dates: dates
+        ) { result in
+            switch result {
+            case .success(let response):
+                let json = APIController.getJsonString(response)
+                callback(json.error, json.value)
+            case .failure(let error):
+                callback(error.message, nil)
+            }
+        }
+    }
+    
+    
     
     // MARK: - Settings
     

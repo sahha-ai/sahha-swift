@@ -15,6 +15,8 @@ struct DataLogRequest: Codable {
     var startDateTime: String
     var endDateTime: String
     var additionalProperties: [String: String]?
+    var postDateTimes: [String]?
+    var modifiedDateTime: String?
     var parentId: String?
     
     init(_ uuid: UUID, sensor: SahhaSensor, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
@@ -29,7 +31,7 @@ struct DataLogRequest: Codable {
         self.init(uuid, logType: logType.rawValue, dataType: activitySummary.rawValue, value: value, unit: activitySummary.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
     }
     
-    private init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
+    init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.id = uuid.uuidString
         self.logType = logType
         self.dataType = dataType
@@ -212,7 +214,6 @@ extension SahhaSensor {
             nil
         case .bone_mass:
             nil
-
         }
     }
     
@@ -249,7 +250,7 @@ extension SahhaSensor {
         }
     }
     
-    internal var unitString: String {
+    public var unitString: String {
         return switch self {
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average:
             "bpm"
@@ -278,7 +279,7 @@ extension SahhaSensor {
         case .step_count, .floor_count, .body_mass_index, .activity_summary:
             "count"
         case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
-            "none"
+            ""
         }
     }
     

@@ -30,6 +30,12 @@ fileprivate actor DataManager {
         return dataLogs.isEmpty
     }
     
+    func addDataLogs(_ logs: [DataLogRequest]) {
+        if logs.isEmpty == false {
+            dataLogs.append(contentsOf: logs)
+        }
+    }
+    
     func addDataLogs(_ logs: [DataLogRequest], sensor: SahhaSensor) {
         if logs.isEmpty == false {
             dataLogs.append(contentsOf: logs)
@@ -92,7 +98,24 @@ fileprivate actor DataManager {
         if requestCount > 0 {
             let dataLogRequests: [DataLogRequest] = Array(dataLogs.prefix(maxDataLogRequestLimit))
             dataLogs.removeFirst(dataLogRequests.count)
-            postDataLogs(dataLogRequests)
+            
+            if Sahha.settings?.environment == .sandbox {
+                
+                // Additional logging for Sandbox environment
+                var requests: [DataLogRequest] = []
+
+                for var request in dataLogRequests {
+                    var postDateTimes = request.postDateTimes ?? []
+                    postDateTimes.append(Date().toDateTime)
+                    request.postDateTimes = postDateTimes
+                    requests.append(request)
+                }
+                
+                postDataLogs(requests)
+                
+            } else {
+                postDataLogs(dataLogRequests)
+            }
         } else {
             saveDataLogs()
         }
@@ -146,6 +169,17 @@ fileprivate actor DataManager {
     
 }
 
+fileprivate enum AppLogType: String {
+    case app_create
+    case app_start
+    case app_resume
+    case app_pause
+    case app_foreground
+    case app_background
+    case app_destroy
+    case app_locked
+}
+
 fileprivate func setAnchorDate(_ date: Date?, sensor: SahhaSensor) {
     UserDefaults.standard.set(date: date, forKey: sensor.keyName)
 }
@@ -179,17 +213,6 @@ fileprivate func getAnchor(sensor: SahhaSensor) -> HKQueryAnchor? {
     }
 }
 
-fileprivate func filterError(_ error: Error, path: String, method: String, body: String) {
-    print(error.localizedDescription)
-    if let healthError = error as? HKError, healthError.code == HKError.Code.errorDatabaseInaccessible {
-        // The device is currently locked so data is inaccessible
-        // This should be considered a warning instead of an error
-        // Avoid sending an error message
-    } else {
-        Sahha.postError(message: error.localizedDescription, path: path, method: method, body: body)
-    }
-}
-
 internal class HealthActivity {
     
     private static let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
@@ -207,7 +230,63 @@ internal class HealthActivity {
     init() {
         Task {
             await Self.dataManager.loadData()
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppStart), name: UIApplication.didFinishLaunchingNotification, object: nil)
+                        
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppResume), name: UIApplication.didBecomeActiveNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppPause), name: UIApplication.willResignActiveNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onAppDestroy), name: UIApplication.willTerminateNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceUnlock), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+            
+            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
+            
+            onAppCreate()
         }
+    }
+    
+    @objc fileprivate func onAppCreate() {
+        createAppLog(.app_create)
+    }
+    
+    @objc fileprivate func onAppStart() {
+        createAppLog(.app_start)
+    }
+    
+    @objc fileprivate func onAppResume() {
+        createAppLog(.app_resume)
+        postInsights()
+        getDemographic()
+    }
+    
+    @objc fileprivate func onAppPause() {
+        createAppLog(.app_pause)
+    }
+    
+    @objc fileprivate func onAppForeground() {
+        createAppLog(.app_foreground)
+    }
+    
+    @objc fileprivate func onAppBackground() {
+        createAppLog(.app_background)
+    }
+    
+    @objc fileprivate func onAppDestroy() {
+        createAppLog(.app_destroy)
+    }
+    
+    @objc fileprivate func onDeviceUnlock() {
+        createDeviceLog(false)
+    }
+    
+    @objc fileprivate func onDeviceLock() {
+        createDeviceLog(true)
     }
     
     func clearData() {
@@ -222,42 +301,29 @@ internal class HealthActivity {
     
     internal func configure() {
         
-        NotificationCenter.default.addObserver(self, selector: #selector(onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(onAppBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceUnlock), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
-        
         observeSensors()
         enableBackgroundDelivery()
         
         print("Sahha | Health configured")
     }
     
-    @objc fileprivate func onAppOpen() {
-    }
-    
-    @objc fileprivate func onAppClose() {
-    }
-    
-    @objc fileprivate func onAppBackground() {
-        postInsights()
-        getDemographic()
-    }
-    
-    @objc fileprivate func onDeviceUnlock() {
-        createDeviceLog(false)
-    }
-    
-    @objc fileprivate func onDeviceLock() {
-        createDeviceLog(true)
+    private func filterError(_ error: Error, path: String, method: String, body: String) {
+        print(error.localizedDescription)
+        if let healthError = error as? HKError, healthError.code == HKError.Code.errorDatabaseInaccessible {
+            // The device is currently locked so data is inaccessible
+            // This should be considered a warning instead of an error
+            // Avoid sending an error message
+            createAppLog(.app_locked)
+        } else {
+            Sahha.postError(message: error.localizedDescription, path: path, method: method, body: body)
+        }
     }
     
     func getDemographic() {
+        
+        guard Self.isAvailable, Sahha.isAuthenticated else {
+            return
+        }
         
         Task {
             
@@ -329,7 +395,7 @@ internal class HealthActivity {
     }
     
     /// Activate Health - callback with TRUE or FALSE for success
-    public func enableSensors(_ sensors: Set<SahhaSensor>, _ callback: @escaping (String?, SahhaSensorStatus)->Void) {
+    internal func enableSensors(_ sensors: Set<SahhaSensor>, _ callback: @escaping (String?, SahhaSensorStatus)->Void) {
         
         guard Self.isAvailable else {
             callback(nil, .unavailable)
@@ -418,9 +484,9 @@ internal class HealthActivity {
             
             if let sampleType = sensor.objectType as? HKSampleType {
                 
-                Self.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { _, error in
+                Self.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] _, error in
                     if let error = error {
-                        filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
+                        self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
                     }
                 }
             }
@@ -461,7 +527,7 @@ internal class HealthActivity {
                         // HKObserverQuery is the only query type that can run in the background - we then need to use HKAnchoredObjectQuery once the app is notified of a change to the HealthKit Store
                         let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                             if let error = errorOrNil {
-                                filterError(error, path: "HealthActivity", method: "monitorSensor", body: "let query = HKObserverQuery " + error.localizedDescription)
+                                self?.filterError(error, path: "HealthActivity", method: "monitorSensor", body: "let query = HKObserverQuery " + error.localizedDescription)
                             } else {
                                 self?.querySensor(sensor)
                             }
@@ -525,7 +591,7 @@ internal class HealthActivity {
                         let anchor = getAnchor(sensor: sensor)
                         let query = HKAnchoredObjectQuery(type: sampleType, predicate: predicate, anchor: anchor, limit: HKObjectQueryNoLimit) { [weak self] newQuery, samplesOrNil, deletedObjectsOrNil, anchorOrNil, errorOrNil in
                             if let error = errorOrNil {
-                                filterError(error, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
+                                self?.filterError(error, path: "HealthActivity", method: "postSensorData", body: "let query = HKAnchoredObjectQuery")
                                 Task {
                                     await Self.dataManager.addDataLogs([], sensor: sensor)
                                 }
@@ -583,7 +649,7 @@ internal class HealthActivity {
     }
     
     internal func postInsights() {
-                
+        
         guard Self.isAvailable, Sahha.isAuthenticated else {
             return
         }
@@ -608,12 +674,12 @@ internal class HealthActivity {
                     
                     let predicate = HKQuery.predicate(forActivitySummariesBetweenStart: startComponents, end: endComponents)
                     
-                    let query = HKActivitySummaryQuery(predicate: predicate) { query, result, error in
+                    let query = HKActivitySummaryQuery(predicate: predicate) { [weak self] query, result, error in
                         
                         if let error = error {
                             // Reset insight date
                             setAnchorDate(startDate, sensor: .activity_summary)
-                            filterError(error, path: "HealthActivity", method: "getActivitySummary", body: "")
+                            self?.filterError(error, path: "HealthActivity", method: "getActivitySummary", body: "")
                             Task {
                                 await Self.dataManager.querySensor(.activity_summary)
                             }
@@ -685,6 +751,15 @@ internal class HealthActivity {
             recordingMethod = .manual_entry
         }
         return recordingMethod
+    }
+    
+    private func createAppLog(_ appLogType: AppLogType) {
+                
+        Task {
+            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
+            
+            await Self.dataManager.addDataLogs([request])
+        }
     }
     
     private func createDeviceLog(_ isLocked: Bool) {
