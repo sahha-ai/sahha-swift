@@ -96,7 +96,7 @@ fileprivate actor DataManager {
         
         let requestCount: Int = min(dataLogs.count, maxDataLogRequestLimit)
         if requestCount > 0 {
-            var dataLogRequests: [DataLogRequest] = Array(dataLogs.prefix(maxDataLogRequestLimit))
+            let dataLogRequests: [DataLogRequest] = Array(dataLogs.prefix(maxDataLogRequestLimit))
             dataLogs.removeFirst(dataLogRequests.count)
             
             if Sahha.settings?.environment == .sandbox {
@@ -841,7 +841,7 @@ internal class HealthActivity {
     private func createAppLog(_ appLogType: AppLogType) {
                 
         Task {
-            let request = DataLogRequest(UUID(), logType: appLogType.rawValue, dataType: "app_event", value: 0, unit: "none", source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
+            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
             
             await Self.dataManager.addDataLogs([request])
         }
