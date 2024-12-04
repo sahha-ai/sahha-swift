@@ -279,7 +279,7 @@ extension SahhaSensor {
         case .step_count, .floor_count, .body_mass_index, .activity_summary:
             "count"
         case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
-            "none"
+            ""
         }
     }
     
