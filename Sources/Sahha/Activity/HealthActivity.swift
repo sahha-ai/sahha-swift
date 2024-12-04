@@ -96,7 +96,7 @@ fileprivate actor DataManager {
         
         let requestCount: Int = min(dataLogs.count, maxDataLogRequestLimit)
         if requestCount > 0 {
-            var dataLogRequests: [DataLogRequest] = Array(dataLogs.prefix(maxDataLogRequestLimit))
+            let dataLogRequests: [DataLogRequest] = Array(dataLogs.prefix(maxDataLogRequestLimit))
             dataLogs.removeFirst(dataLogRequests.count)
             
             if Sahha.settings?.environment == .sandbox {
