@@ -178,17 +178,11 @@ public class Sahha {
     // MARK: - Sensors
     
     public static func getSensorStatus(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        
-        health.getSensorStatus(sensors) { error, status in
-            callback(error, status)
-        }
+        health.getSensorStatus(sensors, callback)
     }
     
     public static func enableSensors(_ sensors: Set<SahhaSensor>, callback: @escaping (String?, SahhaSensorStatus)->Void) {
-        
-        health.enableSensors(sensors) { error, status in
-            callback(error, status)
-        }
+        health.enableSensors(sensors, callback)
     }
     
     // MARK: - Scores
