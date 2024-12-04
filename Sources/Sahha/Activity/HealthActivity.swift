@@ -124,18 +124,21 @@ fileprivate actor DataManager {
     private func postDataLogs(_ requests: [DataLogRequest]) {
         
         func onSuccess() {
+            
             Task {
                 postPendingDataLogs()
             }
         }
         
         func onFailure(_ requests: [DataLogRequest]) {
+                        
             Task {
                 saveDataLogs(requests)
             }
         }
         
         APIController.postDataLog(body: requests) { result in
+            
             switch result {
             case .success(_):
                 onSuccess()
@@ -744,6 +747,88 @@ internal class HealthActivity {
         
     }
     
+    internal func getStats(sensor: SahhaSensor, start: Date, end: Date, interval: SahhaStatInterval, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+        
+        guard Self.isAvailable else {
+            callback("Health data is not available on this device", [])
+            return
+        }
+        
+        guard let quantityType = sensor.objectType as? HKQuantityType else {
+            callback("Stats are not available for \(sensor.keyName)", [])
+            return
+        }
+        
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: [quantityType]) { status, error in
+            
+            switch status {
+            case .unnecessary:
+                
+                let startDate = Calendar.current.startOfDay(for: start) ?? start
+                var endDate = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
+                endDate = Calendar.current.startOfDay(for: endDate) ?? endDate
+                var dateComponents = DateComponents()
+                switch interval {
+                case .day: dateComponents.day = 1
+                case .hour: dateComponents.hour = 1
+                }
+                print(startDate.toDateTime)
+                print(endDate.toDateTime)
+                
+                let options: HKStatisticsOptions
+                switch sensor {
+                case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
+                    options = HKStatisticsOptions.discreteAverage
+                default:
+                    options = HKStatisticsOptions.cumulativeSum
+                }
+                let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+                let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: startDate, intervalComponents: dateComponents)
+                
+                query.initialResultsHandler = {
+                    _, results, error in
+                    
+                    guard let results = results else {
+                        if let error = error {
+                            print(error.localizedDescription)
+                        }
+                        callback("error", [])
+                        return
+                    }
+                    
+                    var stats: [SahhaStat] = []
+                    
+                    for result in results.statistics() {
+                        var quantity: HKQuantity?
+                        switch sensor {
+                        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
+                            quantity = result.averageQuantity()
+                        default:
+                            quantity = result.sumQuantity()
+                        }
+                        if let quantity = quantity, let unit: HKUnit = sensor.unit {
+                            
+                            do {
+                                let value: Double = quantity.doubleValue(for: unit)
+                                let stat = SahhaStat(id: UUID().uuidString, sensor: sensor, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate)
+                                stats.append(stat)
+                            } catch let error {
+                                
+                            }
+                        }
+                    }
+                    
+                    callback(nil, stats)
+                }
+                
+                Self.store.execute(query)
+                
+            default:
+                callback("User permission is not granted for \(sensor.keyName)", [])
+                return
+            }
+        }
+    }
     
     private func getRecordingMethod(_ sample: HKSample) -> RecordingMethodIdentifier {
         var recordingMethod: RecordingMethodIdentifier = .unknown
