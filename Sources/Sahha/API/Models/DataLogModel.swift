@@ -128,7 +128,7 @@ extension SahhaSensor {
         return switch self {
         case .sleep:
             HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
-        case .step_count:
+        case .steps:
             HKSampleType.quantityType(forIdentifier: .stepCount)!
         case .floor_count:
             HKSampleType.quantityType(forIdentifier: .flightsClimbed)!
@@ -243,7 +243,7 @@ extension SahhaSensor {
             .millimeterOfMercury()
         case .blood_glucose:
             HKUnit(from: "mg/dL")
-        case .sleep, .step_count, .floor_count, .body_mass_index:
+        case .sleep, .steps, .floor_count, .body_mass_index:
             .count()
         case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .activity_summary, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
             nil
@@ -276,7 +276,7 @@ extension SahhaSensor {
             "mmHg"
         case .blood_glucose:
             "mg/dL"
-        case .step_count, .floor_count, .body_mass_index, .activity_summary:
+        case .steps, .floor_count, .body_mass_index, .activity_summary:
             "count"
         case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
             ""
@@ -289,7 +289,7 @@ extension SahhaSensor {
             .demographic
         case .sleep:
             .sleep
-        case .step_count, .floor_count, .move_time, .stand_time, .exercise_time, .activity_summary:
+        case .steps, .floor_count, .move_time, .stand_time, .exercise_time, .activity_summary:
             .activity
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .heart_rate_variability_rmssd:
             .heart
