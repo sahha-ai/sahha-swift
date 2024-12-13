@@ -747,7 +747,7 @@ internal class HealthActivity {
         
     }
     
-    internal func getStats(sensor: SahhaSensor, start: Date, end: Date, interval: SahhaStatInterval, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+    internal func getStats(sensor: SahhaSensor, start: Date, end: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
         
         guard Self.isAvailable else {
             callback("Health data is not available on this device", [])
@@ -768,12 +768,7 @@ internal class HealthActivity {
                 var endDate = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
                 endDate = Calendar.current.startOfDay(for: endDate) ?? endDate
                 var dateComponents = DateComponents()
-                switch interval {
-                case .day: dateComponents.day = 1
-                case .hour: dateComponents.hour = 1
-                }
-                print(startDate.toDateTime)
-                print(endDate.toDateTime)
+                dateComponents.day = 1
                 
                 let options: HKStatisticsOptions
                 switch sensor {
@@ -807,7 +802,6 @@ internal class HealthActivity {
                             quantity = result.sumQuantity()
                         }
                         if let quantity = quantity, let unit: HKUnit = sensor.unit {
-                            
                             do {
                                 let value: Double = quantity.doubleValue(for: unit)
                                 let stat = SahhaStat(id: UUID().uuidString, sensor: sensor, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate)
