@@ -21,7 +21,7 @@ public enum SahhaSensor: String, CaseIterable {
     case date_of_birth
     case sleep
     case steps
-    case floor_count
+    case floors
     case heart_rate
     case resting_heart_rate
     case walking_heart_rate_average
