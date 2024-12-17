@@ -44,7 +44,7 @@ public class Sahha {
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppOpen), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(Sahha.onAppClose), name: UIApplication.willResignActiveNotification, object: nil)
-                
+        
         print("Sahha | SDK configured")
         
         // Do optional callback
@@ -193,8 +193,8 @@ public class Sahha {
     
     // MARK: - Scores
     
-    public static func getScores(_ types: Set<SahhaScoreType>, dates:(startDate: Date, endDate: Date)? = nil, callback: @escaping (String?, String?) -> Void) {
-        APIController.getScores(types, dates: dates) { result in
+    public static func getScores(types: Set<SahhaScoreType>, startDate: Date, endDate: Date, callback: @escaping (String?, String?) -> Void) {
+        APIController.getScores(types, startDate: startDate, endDate: endDate) { result in
             switch result {
             case .success(let response):
                 let json = APIController.getJsonString(response)
@@ -207,16 +207,13 @@ public class Sahha {
     
     // MARK: - Biomarkers
     
-    public static func getBiomarkers(
-        categories: Set<SahhaBiomarkerCategory>,
-        types: Set<SahhaBiomarkerType>,
-        dates:(startDate: Date, endDate: Date)? = nil,
-        callback: @escaping (String?, String?) -> Void
+    public static func getBiomarkers(categories: Set<SahhaBiomarkerCategory>, types: Set<SahhaBiomarkerType>, startDate: Date, endDate: Date, callback: @escaping (String?, String?) -> Void
     ) {
         APIController.getBiomarkers(
             categories: categories,
             types: types,
-            dates: dates
+            startDate: startDate,
+            endDate: endDate
         ) { result in
             switch result {
             case .success(let response):
@@ -245,6 +242,6 @@ public class Sahha {
         let error = SahhaErrorModel(errorLocation: framework.rawValue, errorMessage: message, codePath: path, codeMethod: method, codeBody: body)
         APIController.postError(error, source: .app)
     }
-
+    
 }
 
