@@ -8,19 +8,22 @@ public enum SahhaStatInterval: String  {
 
 public struct SahhaStat: Comparable {
     public var id: String
-    public var sensor: SahhaSensor
+    public var type: String
     public var value: Double
     public var unit: String
     public var startDate: Date
     public var endDate: Date
+    public var sources: [String]
     
-    public init(id: String, sensor: SahhaSensor, value: Double, unit: String, startDate: Date, endDate: Date) {
+    public init(id: String, type: String, value: Double, unit: String, startDate: Date, endDate: Date, sources: [String]) {
         self.id = id
-        self.sensor = sensor
+        self.type = type
         self.value = value
         self.unit = unit
         self.startDate = startDate
         self.endDate = endDate
+        self.sources = sources
+        print(self.type, startDate.toDateTime, endDate.toDateTime, "\(value)", sources)
     }
     
     public static func < (lhs: SahhaStat, rhs: SahhaStat) -> Bool {

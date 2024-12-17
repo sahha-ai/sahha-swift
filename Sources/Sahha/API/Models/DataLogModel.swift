@@ -69,7 +69,7 @@ enum DataLogPropertyIdentifier: String {
     case relationToMeal
 }
 
-enum SleepStage: String {
+enum SleepStage: String, CaseIterable {
     case sleep_stage_unknown
     case sleep_stage_in_bed
     case sleep_stage_awake

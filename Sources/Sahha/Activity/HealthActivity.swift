@@ -754,15 +754,25 @@ internal class HealthActivity {
             return
         }
         
-        guard let quantityType = sensor.objectType as? HKQuantityType else {
+        guard let objectType = sensor.objectType else {
             callback("Stats are not available for \(sensor.keyName)", [])
             return
         }
         
-        Self.store.getRequestStatusForAuthorization(toShare: [], read: [quantityType]) { status, error in
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { [weak self] status, error in
             
             switch status {
             case .unnecessary:
+                
+                if sensor == .sleep {
+                    self?.getSleepStats(start: start, end: end, callback: callback)
+                    return
+                }
+                
+                guard let quantityType = sensor.objectType as? HKQuantityType else {
+                    callback("Stats are not available for \(sensor.keyName)", [])
+                    return
+                }
                 
                 let startDate = Calendar.current.startOfDay(for: start) ?? start
                 var endDate = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
@@ -804,7 +814,11 @@ internal class HealthActivity {
                         if let quantity = quantity, let unit: HKUnit = sensor.unit {
                             do {
                                 let value: Double = quantity.doubleValue(for: unit)
-                                let stat = SahhaStat(id: UUID().uuidString, sensor: sensor, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate)
+                                var sources: [String] = []
+                                for source in result.sources ?? [] {
+                                    sources.append(source.bundleIdentifier)
+                                }
+                                let stat = SahhaStat(id: UUID().uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate, sources: sources)
                                 stats.append(stat)
                             } catch let error {
                                 
@@ -822,6 +836,107 @@ internal class HealthActivity {
                 return
             }
         }
+    }
+    
+    private func getSleepStats(start: Date, end: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+        
+        var startDate = Calendar.current.date(byAdding: .day, value: -1, to: start) ?? start
+        startDate = Calendar.current.date(bySetting: .hour, value: 12, of: startDate) ?? startDate
+        var endDate = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
+
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+        let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
+            if let error = error {
+                print(error.localizedDescription)
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getSleepStats", body: "")
+                callback(error.localizedDescription, [])
+                return
+            }
+            guard let samples = samplesOrNil as? [HKCategorySample], samples.isEmpty == false else {
+                callback("No stats were found for the given date range for sleep", [])
+                return
+            }
+            
+            func isInBed(_ value: HKCategoryValueSleepAnalysis) -> Bool {
+                return value == .inBed
+            }
+            
+            func isAsleep(_ value: HKCategoryValueSleepAnalysis) -> Bool {
+                if value == .asleep {
+                    return true
+                } else if #available(iOS 16.0, *) {
+                    switch value {
+                    case .asleepREM, .asleepCore, .asleepDeep, .asleepUnspecified:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+            
+            var stats: [SahhaStat] = []
+            let day = 86400.0
+            var rollingInterval = DateInterval(start: startDate, duration: day)
+            while rollingInterval.end <= endDate {
+                
+                var sleepStats: Dictionary<SleepStage, (value: Double, sources: Set<String>)> = [:]
+                for stage in SleepStage.allCases {
+                    sleepStats[stage] = (value: 0, sources: [])
+                }
+                var bedTime: Double = 0
+                var sleepTime: Double = 0
+                var sleepREMTime: Double = 0
+                var sleepLightTime: Double = 0
+                var sleepDeepTime: Double = 0
+                var bedSources: Set<String> = []
+                var sleepSources: Set<String> = []
+                var sleepREMSources: Set<String> = []
+                var sleepLightSources: Set<String> = []
+                var sleepDeepSources: Set<String> = []
+                
+                for sample in samples {
+                    if let sleepStage = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                        let sampleInterval = DateInterval(start: sample.startDate, end: sample.endDate)
+                        if let intersection = sampleInterval.intersection(with: rollingInterval) {
+                            let sampleTime = intersection.duration / 60
+                            let sampleSource = sample.sourceRevision.source.bundleIdentifier
+                            if isInBed(sleepStage) {
+                                sleepStats[.sleep_stage_in_bed]?.value += sampleTime
+                                sleepStats[.sleep_stage_in_bed]?.sources.insert(sampleSource)
+                            } else if isAsleep(sleepStage) {
+                                sleepStats[.sleep_stage_sleeping]?.value += sampleTime
+                                sleepStats[.sleep_stage_sleeping]?.sources.insert(sampleSource)
+                                switch sleepStage {
+                                case .asleepREM:
+                                    sleepStats[.sleep_stage_rem]?.value += sampleTime
+                                    sleepStats[.sleep_stage_rem]?.sources.insert(sampleSource)
+                                case .asleepCore:
+                                    sleepStats[.sleep_stage_light]?.value += sampleTime
+                                    sleepStats[.sleep_stage_light]?.sources.insert(sampleSource)
+                                case .asleepDeep:
+                                    sleepStats[.sleep_stage_deep]?.value += sampleTime
+                                    sleepStats[.sleep_stage_deep]?.sources.insert(sampleSource)
+                                default:
+                                    sleepStats[.sleep_stage_unknown]?.value += sampleTime
+                                    sleepStats[.sleep_stage_unknown]?.sources.insert(sampleSource)
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                for (key, value) in sleepStats {
+                    let stat = SahhaStat(id: UUID().uuidString, type: key == .sleep_stage_sleeping ? "sleep" : key.rawValue, value: value.value, unit: SahhaSensor.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end, sources: Array(value.sources))
+                    stats.append(stat)
+                }
+                
+                rollingInterval = DateInterval(start: rollingInterval.end, duration: day)
+            }
+            callback(nil, stats)
+        }
+        Self.store.execute(query)
     }
     
     private func getRecordingMethod(_ sample: HKSample) -> RecordingMethodIdentifier {
