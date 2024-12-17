@@ -747,7 +747,7 @@ internal class HealthActivity {
         
     }
     
-    internal func getStats(sensor: SahhaSensor, start: Date, end: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+    internal func getStats(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
         
         guard Self.isAvailable else {
             callback("Health data is not available on this device", [])
@@ -765,7 +765,7 @@ internal class HealthActivity {
             case .unnecessary:
                 
                 if sensor == .sleep {
-                    self?.getSleepStats(start: start, end: end, callback: callback)
+                    self?.getSleepStats(startDate: startDate, endDate: endDate, callback: callback)
                     return
                 }
                 
@@ -774,9 +774,9 @@ internal class HealthActivity {
                     return
                 }
                 
-                let startDate = Calendar.current.startOfDay(for: start)
-                var endDate = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
-                endDate = Calendar.current.startOfDay(for: endDate)
+                let start = Calendar.current.startOfDay(for: startDate)
+                var end = Calendar.current.date(byAdding: .day, value: 1, to: endDate) ?? endDate
+                end = Calendar.current.startOfDay(for: end)
                 var dateComponents = DateComponents()
                 dateComponents.day = 1
                 
@@ -787,7 +787,7 @@ internal class HealthActivity {
                 default:
                     options = HKStatisticsOptions.cumulativeSum
                 }
-                let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+                let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
                 let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: startDate, intervalComponents: dateComponents)
                 
                 query.initialResultsHandler = {
@@ -834,13 +834,13 @@ internal class HealthActivity {
         }
     }
     
-    private func getSleepStats(start: Date, end: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+    private func getSleepStats(startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
         
-        var startDate = Calendar.current.date(byAdding: .day, value: -1, to: start) ?? start
-        startDate = Calendar.current.date(bySetting: .hour, value: 12, of: startDate) ?? startDate
-        let endDate = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
+        var start = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
+        start = Calendar.current.date(bySetting: .hour, value: 12, of: startDate) ?? startDate
+        let end = Calendar.current.date(bySetting: .hour, value: 12, of: endDate) ?? endDate
 
-        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
             if let error = error {
                 print(error.localizedDescription)
@@ -873,8 +873,8 @@ internal class HealthActivity {
             
             var stats: [SahhaStat] = []
             let day = 86400.0
-            var rollingInterval = DateInterval(start: startDate, duration: day)
-            while rollingInterval.end <= endDate {
+            var rollingInterval = DateInterval(start: start, duration: day)
+            while rollingInterval.end <= end {
                 
                 var sleepStats: Dictionary<SleepStage, (value: Double, sources: Set<String>)> = [:]
                 for stage in SleepStage.allCases {

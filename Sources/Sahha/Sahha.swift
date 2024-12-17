@@ -187,8 +187,8 @@ public class Sahha {
     
     // MARK: - Stats
     
-    public static func getStats(sensor: SahhaSensor, start: Date, end: Date, callback: @escaping (String?, [SahhaStat])->Void) {
-        health.getStats(sensor: sensor, start: start, end: end, callback: callback)
+    public static func getStats(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaStat])->Void) {
+        health.getStats(sensor: sensor, startDate: startDate, endDate: endDate, callback: callback)
     }
     
     // MARK: - Scores
