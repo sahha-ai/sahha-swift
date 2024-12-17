@@ -774,9 +774,9 @@ internal class HealthActivity {
                     return
                 }
                 
-                let startDate = Calendar.current.startOfDay(for: start) ?? start
+                let startDate = Calendar.current.startOfDay(for: start)
                 var endDate = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
-                endDate = Calendar.current.startOfDay(for: endDate) ?? endDate
+                endDate = Calendar.current.startOfDay(for: endDate)
                 var dateComponents = DateComponents()
                 dateComponents.day = 1
                 
@@ -812,17 +812,13 @@ internal class HealthActivity {
                             quantity = result.sumQuantity()
                         }
                         if let quantity = quantity, let unit: HKUnit = sensor.unit {
-                            do {
-                                let value: Double = quantity.doubleValue(for: unit)
-                                var sources: [String] = []
-                                for source in result.sources ?? [] {
-                                    sources.append(source.bundleIdentifier)
-                                }
-                                let stat = SahhaStat(id: UUID().uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate, sources: sources)
-                                stats.append(stat)
-                            } catch let error {
-                                
+                            let value: Double = quantity.doubleValue(for: unit)
+                            var sources: [String] = []
+                            for source in result.sources ?? [] {
+                                sources.append(source.bundleIdentifier)
                             }
+                            let stat = SahhaStat(id: UUID().uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate, sources: sources)
+                            stats.append(stat)
                         }
                     }
                     
@@ -842,7 +838,7 @@ internal class HealthActivity {
         
         var startDate = Calendar.current.date(byAdding: .day, value: -1, to: start) ?? start
         startDate = Calendar.current.date(bySetting: .hour, value: 12, of: startDate) ?? startDate
-        var endDate = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
+        let endDate = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
 
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
@@ -884,16 +880,6 @@ internal class HealthActivity {
                 for stage in SleepStage.allCases {
                     sleepStats[stage] = (value: 0, sources: [])
                 }
-                var bedTime: Double = 0
-                var sleepTime: Double = 0
-                var sleepREMTime: Double = 0
-                var sleepLightTime: Double = 0
-                var sleepDeepTime: Double = 0
-                var bedSources: Set<String> = []
-                var sleepSources: Set<String> = []
-                var sleepREMSources: Set<String> = []
-                var sleepLightSources: Set<String> = []
-                var sleepDeepSources: Set<String> = []
                 
                 for sample in samples {
                     if let sleepStage = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
