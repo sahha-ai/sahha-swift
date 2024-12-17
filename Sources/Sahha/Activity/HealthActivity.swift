@@ -788,7 +788,7 @@ internal class HealthActivity {
                     options = HKStatisticsOptions.cumulativeSum
                 }
                 let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
-                let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: startDate, intervalComponents: dateComponents)
+                let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: start, intervalComponents: dateComponents)
                 
                 query.initialResultsHandler = {
                     _, results, error in
