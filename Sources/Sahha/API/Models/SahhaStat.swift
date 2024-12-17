@@ -6,7 +6,7 @@ public enum SahhaStatInterval: String  {
     case day
 }
 
-public struct SahhaStat: Comparable {
+public struct SahhaStat: Comparable, Codable {
     public var id: String
     public var type: String
     public var value: Double
@@ -24,6 +24,16 @@ public struct SahhaStat: Comparable {
         self.endDate = endDate
         self.sources = sources
         print(self.type, startDate.toDateTime, endDate.toDateTime, "\(value)", sources)
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(value, forKey: .value)
+        try container.encode(startDate.toDateTime, forKey: .startDate)
+        try container.encode(endDate.toDateTime, forKey: .endDate)
+        try container.encode(sources, forKey: .sources)
     }
     
     public static func < (lhs: SahhaStat, rhs: SahhaStat) -> Bool {
