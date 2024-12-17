@@ -18,7 +18,7 @@ public enum SahhaBiomarkerCategory: String {
 
 public enum SahhaBiomarkerType: String {
     case steps
-    case floors
+    case floors_climbed
     case active_hours
     case active_duration
     case activity_low_intensity_duration
