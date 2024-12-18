@@ -24,22 +24,21 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getScores(_ types: Set<SahhaScoreType>, dates:(startDate: Date, endDate: Date)? = nil, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+    static func getScores(_ types: Set<SahhaScoreType>, startDate: Date, endDate: Date, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
         var queryParams: [(key: String, value: String)] = []
         for type in types {
             queryParams.append((key: "types", value: type.rawValue))
         }
-        if let startDateTime = dates?.startDate.toDateTime, let endDateTime = dates?.endDate.toDateTime {
-            queryParams.append((key: "startDateTime", value: startDateTime))
-            queryParams.append((key: "endDateTime", value: endDateTime))
-        }
+        queryParams.append((key: "startDateTime", value: startDate.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDate.toDateTime))
         APIRequest.execute(ApiEndpoint(.score, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
     static func getBiomarkers(
         categories: Set<SahhaBiomarkerCategory>,
         types: Set<SahhaBiomarkerType>,
-        dates:(startDate: Date, endDate: Date)? = nil,
+        startDate: Date,
+        endDate: Date,
         _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
     ) {
         var queryParams: [(key: String, value: String)] = []
@@ -50,11 +49,8 @@ class APIController {
         for type in types {
             queryParams.append((key: "types", value: type.rawValue))
         }
-        
-        if let startDateTime = dates?.startDate.toDateTime, let endDateTime = dates?.endDate.toDateTime {
-            queryParams.append((key: "startDateTime", value: startDateTime))
-            queryParams.append((key: "endDateTime", value: endDateTime))
-        }
+        queryParams.append((key: "startDateTime", value: startDate.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDate.toDateTime))
         APIRequest.execute(ApiEndpoint(.biomarker, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
