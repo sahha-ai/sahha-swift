@@ -185,6 +185,12 @@ public class Sahha {
         health.enableSensors(sensors, callback)
     }
     
+    // MARK: - Samples
+    
+    public static func getSamples(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaSample])->Void) {
+        health.getSamples(sensor: sensor, startDate: startDate, endDate: endDate, callback: callback)
+    }
+    
     // MARK: - Stats
     
     public static func getStats(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaStat])->Void) {
