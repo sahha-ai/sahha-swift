@@ -835,9 +835,8 @@ internal class HealthActivity {
     }
     
     private func getSleepStats(startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
-        
         var start = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
-        start = Calendar.current.date(bySetting: .hour, value: 12, of: startDate) ?? startDate
+        start = Calendar.current.date(bySetting: .hour, value: 12, of: start) ?? start
         let end = Calendar.current.date(bySetting: .hour, value: 12, of: endDate) ?? endDate
 
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)

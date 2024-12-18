@@ -23,7 +23,6 @@ public struct SahhaStat: Comparable, Codable {
         self.startDate = startDate
         self.endDate = endDate
         self.sources = sources
-        print(self.type, startDate.toDateTime, endDate.toDateTime, "\(value)", sources)
     }
     
     public func encode(to encoder: any Encoder) throws {
