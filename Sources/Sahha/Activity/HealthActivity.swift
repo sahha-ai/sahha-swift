@@ -124,18 +124,21 @@ fileprivate actor DataManager {
     private func postDataLogs(_ requests: [DataLogRequest]) {
         
         func onSuccess() {
+            
             Task {
                 postPendingDataLogs()
             }
         }
         
         func onFailure(_ requests: [DataLogRequest]) {
+                        
             Task {
                 saveDataLogs(requests)
             }
         }
         
         APIController.postDataLog(body: requests) { result in
+            
             switch result {
             case .success(_):
                 onSuccess()
@@ -744,6 +747,182 @@ internal class HealthActivity {
         
     }
     
+    internal func getStats(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+        
+        guard Self.isAvailable else {
+            callback("Health data is not available on this device", [])
+            return
+        }
+        
+        guard let objectType = sensor.objectType else {
+            callback("Stats are not available for \(sensor.keyName)", [])
+            return
+        }
+        
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { [weak self] status, error in
+            
+            switch status {
+            case .unnecessary:
+                
+                if sensor == .sleep {
+                    self?.getSleepStats(startDate: startDate, endDate: endDate, callback: callback)
+                    return
+                }
+                
+                guard let quantityType = sensor.objectType as? HKQuantityType else {
+                    callback("Stats are not available for \(sensor.keyName)", [])
+                    return
+                }
+                
+                let start = Calendar.current.startOfDay(for: startDate)
+                var end = Calendar.current.date(byAdding: .day, value: 1, to: endDate) ?? endDate
+                end = Calendar.current.startOfDay(for: end)
+                var dateComponents = DateComponents()
+                dateComponents.day = 1
+                
+                let options: HKStatisticsOptions
+                switch sensor {
+                case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
+                    options = HKStatisticsOptions.discreteAverage
+                default:
+                    options = HKStatisticsOptions.cumulativeSum
+                }
+                let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+                let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: start, intervalComponents: dateComponents)
+                
+                query.initialResultsHandler = {
+                    _, results, error in
+                    
+                    guard let results = results else {
+                        if let error = error {
+                            print(error.localizedDescription)
+                        }
+                        callback("error", [])
+                        return
+                    }
+                    
+                    var stats: [SahhaStat] = []
+                    
+                    for result in results.statistics() {
+                        var quantity: HKQuantity?
+                        switch sensor {
+                        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
+                            quantity = result.averageQuantity()
+                        default:
+                            quantity = result.sumQuantity()
+                        }
+                        if let quantity = quantity, let unit: HKUnit = sensor.unit {
+                            let value: Double = quantity.doubleValue(for: unit)
+                            var sources: [String] = []
+                            for source in result.sources ?? [] {
+                                sources.append(source.bundleIdentifier)
+                            }
+                            let stat = SahhaStat(id: UUID().uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: result.startDate, endDate: result.endDate, sources: sources)
+                            stats.append(stat)
+                        }
+                    }
+                    
+                    callback(nil, stats)
+                }
+                
+                Self.store.execute(query)
+                
+            default:
+                callback("User permission is not granted for \(sensor.keyName)", [])
+                return
+            }
+        }
+    }
+    
+    private func getSleepStats(startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
+        var start = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
+        start = Calendar.current.date(bySetting: .hour, value: 12, of: start) ?? start
+        let end = Calendar.current.date(bySetting: .hour, value: 12, of: endDate) ?? endDate
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
+            if let error = error {
+                print(error.localizedDescription)
+                Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "getSleepStats", body: "")
+                callback(error.localizedDescription, [])
+                return
+            }
+            guard let samples = samplesOrNil as? [HKCategorySample], samples.isEmpty == false else {
+                callback("No stats were found for the given date range for sleep", [])
+                return
+            }
+            
+            func isInBed(_ value: HKCategoryValueSleepAnalysis) -> Bool {
+                return value == .inBed
+            }
+            
+            func isAsleep(_ value: HKCategoryValueSleepAnalysis) -> Bool {
+                if value == .asleep {
+                    return true
+                } else if #available(iOS 16.0, *) {
+                    switch value {
+                    case .asleepREM, .asleepCore, .asleepDeep, .asleepUnspecified:
+                        return true
+                    default:
+                        return false
+                    }
+                }
+                return false
+            }
+            
+            var stats: [SahhaStat] = []
+            let day = 86400.0
+            var rollingInterval = DateInterval(start: start, duration: day)
+            while rollingInterval.end <= end {
+                
+                var sleepStats: Dictionary<SleepStage, (value: Double, sources: Set<String>)> = [:]
+                for stage in SleepStage.allCases {
+                    sleepStats[stage] = (value: 0, sources: [])
+                }
+                
+                for sample in samples {
+                    if let sleepStage = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                        let sampleInterval = DateInterval(start: sample.startDate, end: sample.endDate)
+                        if let intersection = sampleInterval.intersection(with: rollingInterval) {
+                            let sampleTime = intersection.duration / 60
+                            let sampleSource = sample.sourceRevision.source.bundleIdentifier
+                            if isInBed(sleepStage) {
+                                sleepStats[.sleep_stage_in_bed]?.value += sampleTime
+                                sleepStats[.sleep_stage_in_bed]?.sources.insert(sampleSource)
+                            } else if isAsleep(sleepStage) {
+                                sleepStats[.sleep_stage_sleeping]?.value += sampleTime
+                                sleepStats[.sleep_stage_sleeping]?.sources.insert(sampleSource)
+                                switch sleepStage {
+                                case .asleepREM:
+                                    sleepStats[.sleep_stage_rem]?.value += sampleTime
+                                    sleepStats[.sleep_stage_rem]?.sources.insert(sampleSource)
+                                case .asleepCore:
+                                    sleepStats[.sleep_stage_light]?.value += sampleTime
+                                    sleepStats[.sleep_stage_light]?.sources.insert(sampleSource)
+                                case .asleepDeep:
+                                    sleepStats[.sleep_stage_deep]?.value += sampleTime
+                                    sleepStats[.sleep_stage_deep]?.sources.insert(sampleSource)
+                                default:
+                                    sleepStats[.sleep_stage_unknown]?.value += sampleTime
+                                    sleepStats[.sleep_stage_unknown]?.sources.insert(sampleSource)
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                for (key, value) in sleepStats {
+                    let stat = SahhaStat(id: UUID().uuidString, type: key == .sleep_stage_sleeping ? "sleep" : key.rawValue, value: value.value, unit: SahhaSensor.sleep.unitString, startDate: rollingInterval.start, endDate: rollingInterval.end, sources: Array(value.sources))
+                    stats.append(stat)
+                }
+                
+                rollingInterval = DateInterval(start: rollingInterval.end, duration: day)
+            }
+            callback(nil, stats)
+        }
+        Self.store.execute(query)
+    }
     
     private func getRecordingMethod(_ sample: HKSample) -> RecordingMethodIdentifier {
         var recordingMethod: RecordingMethodIdentifier = .unknown

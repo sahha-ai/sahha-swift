@@ -20,8 +20,8 @@ public enum SahhaSensor: String, CaseIterable {
     case gender
     case date_of_birth
     case sleep
-    case step_count
-    case floor_count
+    case steps
+    case floors_climbed
     case heart_rate
     case resting_heart_rate
     case walking_heart_rate_average
@@ -83,7 +83,7 @@ class SahhaConfig {
         }
     }
     
-    static let sdkVersion: String = "1.0.6"
+    static let sdkVersion: String = "1.0.8"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
