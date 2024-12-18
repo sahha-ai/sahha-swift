@@ -103,7 +103,7 @@ fileprivate actor DataManager {
                 
                 // Additional logging for Sandbox environment
                 var requests: [DataLogRequest] = []
-
+                
                 for var request in dataLogRequests {
                     var postDateTimes = request.postDateTimes ?? []
                     postDateTimes.append(Date().toDateTime)
@@ -131,7 +131,7 @@ fileprivate actor DataManager {
         }
         
         func onFailure(_ requests: [DataLogRequest]) {
-                        
+            
             Task {
                 saveDataLogs(requests)
             }
@@ -235,7 +235,7 @@ internal class HealthActivity {
             await Self.dataManager.loadData()
             
             NotificationCenter.default.addObserver(self, selector: #selector(onAppStart), name: UIApplication.didFinishLaunchingNotification, object: nil)
-                        
+            
             NotificationCenter.default.addObserver(self, selector: #selector(onAppResume), name: UIApplication.didBecomeActiveNotification, object: nil)
             
             NotificationCenter.default.addObserver(self, selector: #selector(onAppPause), name: UIApplication.willResignActiveNotification, object: nil)
@@ -770,7 +770,7 @@ internal class HealthActivity {
                 }
                 
                 guard let quantityType = sensor.objectType as? HKQuantityType else {
-                    callback("Stats are not available for \(sensor.keyName)", [])
+                    callback("Stats are not available for \(sensor.rawValue)", [])
                     return
                 }
                 
@@ -835,13 +835,13 @@ internal class HealthActivity {
     }
     
     private func getSleepStats(startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
-
+        
         var start = Calendar.current.date(byAdding: .day, value: -1, to: startDate) ?? startDate
         start = Calendar.current.startOfDay(for: start)
         start = Calendar.current.date(bySetting: .hour, value: 12, of: start) ?? start
         var end = Calendar.current.startOfDay(for: endDate)
         end = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
-
+        
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
             if let error = error {
@@ -929,90 +929,90 @@ internal class HealthActivity {
     
     internal func getSamples(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (_ error: String?, _ samples: [SahhaSample])->Void)  {
         
-        guard Self.isAvailable, Sahha.isAuthenticated else {
+        guard Self.isAvailable else {
             return
         }
-                
-        if let objectType = sensor.objectType {
-            Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { status, error in
-                switch status {
-                case .unnecessary:
-                    if let sampleType = sensor.objectType as? HKSampleType {
-                        
-                        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
-                        let startDateDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
-                                                                   ascending: true)
-                        let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [startDateDescriptor]) { sampleQuery, samplesOrNil, errorOrNil in
-                            if let error = errorOrNil {
-                                callback(error.localizedDescription, [])
-                                return
-                            }
-                            
-                            guard let samples = samplesOrNil else {
-                                callback("No samples found for \(sensor.rawValue)", [])
-                                return
-                            }
-                            
-                            var sahhaSamples: [SahhaSample] = []
-                            
-                            switch sensor.logType {
-                            case .sleep:
-                                guard let categorySamples = samples as? [HKCategorySample] else {
-                                    callback("Sahha | Sleep samples in incorrect format", [])
-                                    return
-                                }
-                                for categorySample in categorySamples {
-                                    let sleepStage: SleepStage = Self.getSleepStage(sample: categorySample)
-                                    let difference = Calendar.current.dateComponents([.minute], from: categorySample.startDate, to: categorySample.endDate)
-                                    let value = Double(difference.minute ?? 0)
-                                    let sahhaSample = SahhaSample(id: categorySample.uuid.uuidString, type: sleepStage.rawValue, value: value, unit: sensor.unitString, startDate: categorySample.startDate, endDate: categorySample.endDate, source: categorySample.sourceRevision.source.bundleIdentifier)
-                                    sahhaSamples.append(sahhaSample)
-                                }
-                                
-                            case .exercise:
-                                guard let workoutSamples = samples as? [HKWorkout] else {
-                                    callback("Sahha | Exercise samples in incorrect format", [])
-                                    return
-                                }
-                                for workoutSample in workoutSamples {
-                                    let difference = Calendar.current.dateComponents([.minute], from: workoutSample.startDate, to: workoutSample.endDate)
-                                    let value = Double(difference.minute ?? 0)
-                                    let sahhaSample = SahhaSample(id: workoutSample.uuid.uuidString, type: "exercise_" + workoutSample.workoutActivityType.name, value: value, unit: sensor.unitString, startDate: workoutSample.startDate, endDate: workoutSample.endDate, source: workoutSample.sourceRevision.source.bundleIdentifier)
-                                    sahhaSamples.append(sahhaSample)
-                                }
-                            default:
-                                guard let quantitySamples = samples as? [HKQuantitySample] else {
-                                    callback("Sahha | \(sensor.rawValue) samples in incorrect format", [])
-                                    return
-                                }
-                                
-                                for quantitySample in quantitySamples {
-                                    let value: Double
-                                    if let unit = sensor.unit {
-                                        value = quantitySample.quantity.doubleValue(for: unit)
-                                    } else {
-                                        value = 0
-                                    }
-                                    let sahhaSample = SahhaSample(id: quantitySample.uuid.uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: quantitySample.startDate, endDate: quantitySample.endDate, source: quantitySample.sourceRevision.source.bundleIdentifier)
-                                    sahhaSamples.append(sahhaSample)
-                                }
-                            }
-                            
-                            callback(nil, sahhaSamples)
+        
+        guard let objectType = sensor.objectType else {
+            callback("Samples are not available for \(sensor.rawValue)", [])
+            return
+        }
+        
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { status, error in
+            switch status {
+            case .unnecessary:
+                if let sampleType = sensor.objectType as? HKSampleType {
+                    
+                    let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
+                    let startDateDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
+                                                               ascending: true)
+                    let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [startDateDescriptor]) { sampleQuery, samplesOrNil, errorOrNil in
+                        if let error = errorOrNil {
+                            callback(error.localizedDescription, [])
+                            return
                         }
-                        Self.store.execute(query)
-                    } else {
-                        callback("Sahha | Samples not available for \(sensor.rawValue)", [])
-                        return
+                        
+                        guard let samples = samplesOrNil else {
+                            callback("No samples found for \(sensor.rawValue)", [])
+                            return
+                        }
+                        
+                        var sahhaSamples: [SahhaSample] = []
+                        
+                        switch sensor.logType {
+                        case .sleep:
+                            guard let categorySamples = samples as? [HKCategorySample] else {
+                                callback("Sahha | Sleep samples in incorrect format", [])
+                                return
+                            }
+                            for categorySample in categorySamples {
+                                let sleepStage: SleepStage = Self.getSleepStage(sample: categorySample)
+                                let difference = Calendar.current.dateComponents([.minute], from: categorySample.startDate, to: categorySample.endDate)
+                                let value = Double(difference.minute ?? 0)
+                                let sahhaSample = SahhaSample(id: categorySample.uuid.uuidString, type: sleepStage.rawValue, value: value, unit: sensor.unitString, startDate: categorySample.startDate, endDate: categorySample.endDate, source: categorySample.sourceRevision.source.bundleIdentifier)
+                                sahhaSamples.append(sahhaSample)
+                            }
+                            
+                        case .exercise:
+                            guard let workoutSamples = samples as? [HKWorkout] else {
+                                callback("Sahha | Exercise samples in incorrect format", [])
+                                return
+                            }
+                            for workoutSample in workoutSamples {
+                                let difference = Calendar.current.dateComponents([.minute], from: workoutSample.startDate, to: workoutSample.endDate)
+                                let value = Double(difference.minute ?? 0)
+                                let sahhaSample = SahhaSample(id: workoutSample.uuid.uuidString, type: "exercise_" + workoutSample.workoutActivityType.name, value: value, unit: sensor.unitString, startDate: workoutSample.startDate, endDate: workoutSample.endDate, source: workoutSample.sourceRevision.source.bundleIdentifier)
+                                sahhaSamples.append(sahhaSample)
+                            }
+                        default:
+                            guard let quantitySamples = samples as? [HKQuantitySample] else {
+                                callback("Sahha | \(sensor.rawValue) samples in incorrect format", [])
+                                return
+                            }
+                            
+                            for quantitySample in quantitySamples {
+                                let value: Double
+                                if let unit = sensor.unit {
+                                    value = quantitySample.quantity.doubleValue(for: unit)
+                                } else {
+                                    value = 0
+                                }
+                                let sahhaSample = SahhaSample(id: quantitySample.uuid.uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDate: quantitySample.startDate, endDate: quantitySample.endDate, source: quantitySample.sourceRevision.source.bundleIdentifier)
+                                sahhaSamples.append(sahhaSample)
+                            }
+                        }
+                        
+                        callback(nil, sahhaSamples)
                     }
-                default:
-                    callback("Sahha | User permission needed to collect \(sensor.rawValue) samples", [])
+                    Self.store.execute(query)
+                } else {
+                    callback("Sahha | Samples not available for \(sensor.rawValue)", [])
                     return
                 }
+            default:
+                callback("Sahha | User permission needed to collect \(sensor.rawValue) samples", [])
+                return
             }
-        } else {
-            callback("Sahha | Samples not available for \(sensor.rawValue)", [])
-            return
         }
     }
     
@@ -1025,7 +1025,7 @@ internal class HealthActivity {
     }
     
     private func createAppLog(_ appLogType: AppLogType) {
-                
+        
         Task {
             let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
             
