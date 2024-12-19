@@ -11,17 +11,17 @@ public struct SahhaSample: Comparable, Codable {
     public var type: String
     public var value: Double
     public var unit: String
-    public var startDate: Date
-    public var endDate: Date
+    public var startDateTime: Date
+    public var endDateTime: Date
     public var source: String
     
-    public init(id: String, type: String, value: Double, unit: String, startDate: Date, endDate: Date, source: String) {
+    public init(id: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, source: String) {
         self.id = id
         self.type = type
         self.value = value
         self.unit = unit
-        self.startDate = startDate
-        self.endDate = endDate
+        self.startDateTime = startDateTime
+        self.endDateTime = endDateTime
         self.source = source
     }
     
@@ -30,16 +30,16 @@ public struct SahhaSample: Comparable, Codable {
         try container.encode(id, forKey: .id)
         try container.encode(type, forKey: .type)
         try container.encode(value, forKey: .value)
-        try container.encode(startDate.toDateTime, forKey: .startDate)
-        try container.encode(endDate.toDateTime, forKey: .endDate)
+        try container.encode(startDateTime.toDateTime, forKey: .startDateTime)
+        try container.encode(endDateTime.toDateTime, forKey: .endDateTime)
         try container.encode(source, forKey: .source)
     }
     
     public static func < (lhs: SahhaSample, rhs: SahhaSample) -> Bool {
-        return lhs.startDate < rhs.startDate
+        return lhs.startDateTime < rhs.startDateTime
     }
     
     public static func > (lhs: SahhaSample, rhs: SahhaSample) -> Bool {
-        return lhs.endDate > rhs.endDate
+        return lhs.startDateTime > rhs.startDateTime
     }
 }

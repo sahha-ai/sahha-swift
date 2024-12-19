@@ -187,20 +187,20 @@ public class Sahha {
     
     // MARK: - Samples
     
-    public static func getSamples(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaSample])->Void) {
-        health.getSamples(sensor: sensor, startDate: startDate, endDate: endDate, callback: callback)
+    public static func getSamples(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (String?, [SahhaSample])->Void) {
+        health.getSamples(sensor: sensor, startDateTime: startDateTime, endDateTime: endDateTime, callback: callback)
     }
     
     // MARK: - Stats
     
-    public static func getStats(sensor: SahhaSensor, startDate: Date, endDate: Date, callback: @escaping (String?, [SahhaStat])->Void) {
-        health.getStats(sensor: sensor, startDate: startDate, endDate: endDate, callback: callback)
+    public static func getStats(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (String?, [SahhaStat])->Void) {
+        health.getStats(sensor: sensor, startDateTime: startDateTime, endDateTime: endDateTime, callback: callback)
     }
     
     // MARK: - Scores
     
-    public static func getScores(types: Set<SahhaScoreType>, startDate: Date, endDate: Date, callback: @escaping (String?, String?) -> Void) {
-        APIController.getScores(types, startDate: startDate, endDate: endDate) { result in
+    public static func getScores(types: Set<SahhaScoreType>, startDateTime: Date, endDateTime: Date, callback: @escaping (String?, String?) -> Void) {
+        APIController.getScores(types, startDateTime: startDateTime, endDateTime: endDateTime) { result in
             switch result {
             case .success(let response):
                 let json = APIController.getJsonString(response)
@@ -213,13 +213,13 @@ public class Sahha {
     
     // MARK: - Biomarkers
     
-    public static func getBiomarkers(categories: Set<SahhaBiomarkerCategory>, types: Set<SahhaBiomarkerType>, startDate: Date, endDate: Date, callback: @escaping (String?, String?) -> Void
+    public static func getBiomarkers(categories: Set<SahhaBiomarkerCategory>, types: Set<SahhaBiomarkerType>, startDateTime: Date, endDateTime: Date, callback: @escaping (String?, String?) -> Void
     ) {
         APIController.getBiomarkers(
             categories: categories,
             types: types,
-            startDate: startDate,
-            endDate: endDate
+            startDateTime: startDateTime,
+            endDateTime: endDateTime
         ) { result in
             switch result {
             case .success(let response):

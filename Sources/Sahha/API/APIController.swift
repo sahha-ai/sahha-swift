@@ -24,21 +24,21 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.demographic), .patch, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }
     
-    static func getScores(_ types: Set<SahhaScoreType>, startDate: Date, endDate: Date, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
+    static func getScores(_ types: Set<SahhaScoreType>, startDateTime: Date, endDateTime: Date, _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void) {
         var queryParams: [(key: String, value: String)] = []
         for type in types {
             queryParams.append((key: "types", value: type.rawValue))
         }
-        queryParams.append((key: "startDateTime", value: startDate.toDateTime))
-        queryParams.append((key: "endDateTime", value: endDate.toDateTime))
+        queryParams.append((key: "startDateTime", value: startDateTime.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDateTime.toDateTime))
         APIRequest.execute(ApiEndpoint(.score, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
     static func getBiomarkers(
         categories: Set<SahhaBiomarkerCategory>,
         types: Set<SahhaBiomarkerType>,
-        startDate: Date,
-        endDate: Date,
+        startDateTime: Date,
+        endDateTime: Date,
         _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
     ) {
         var queryParams: [(key: String, value: String)] = []
@@ -49,8 +49,8 @@ class APIController {
         for type in types {
             queryParams.append((key: "types", value: type.rawValue))
         }
-        queryParams.append((key: "startDateTime", value: startDate.toDateTime))
-        queryParams.append((key: "endDateTime", value: endDate.toDateTime))
+        queryParams.append((key: "startDateTime", value: startDateTime.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDateTime.toDateTime))
         APIRequest.execute(ApiEndpoint(.biomarker, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
