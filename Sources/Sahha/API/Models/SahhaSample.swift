@@ -1,28 +1,28 @@
-// Copyright © 2024 Sahha. All rights reserved.
+//
+//  SahhaSample.swift
+//  Sahha
+//
+//  Created by Matthew on 2024-12-18.
+//
 import Foundation
 
-public enum SahhaStatInterval: String  {
-    case hour
-    case day
-}
-
-public struct SahhaStat: Comparable, Codable {
+public struct SahhaSample: Comparable, Codable {
     public var id: String
     public var type: String
     public var value: Double
     public var unit: String
     public var startDateTime: Date
     public var endDateTime: Date
-    public var sources: [String]
+    public var source: String
     
-    public init(id: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, sources: [String]) {
+    public init(id: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, source: String) {
         self.id = id
         self.type = type
         self.value = value
         self.unit = unit
         self.startDateTime = startDateTime
         self.endDateTime = endDateTime
-        self.sources = sources
+        self.source = source
     }
     
     public func encode(to encoder: any Encoder) throws {
@@ -33,14 +33,14 @@ public struct SahhaStat: Comparable, Codable {
         try container.encode(unit, forKey: .unit)
         try container.encode(startDateTime.toDateTime, forKey: .startDateTime)
         try container.encode(endDateTime.toDateTime, forKey: .endDateTime)
-        try container.encode(sources, forKey: .sources)
+        try container.encode(source, forKey: .source)
     }
     
-    public static func < (lhs: SahhaStat, rhs: SahhaStat) -> Bool {
-        return lhs.value < rhs.value
+    public static func < (lhs: SahhaSample, rhs: SahhaSample) -> Bool {
+        return lhs.startDateTime < rhs.startDateTime
     }
     
-    public static func > (lhs: SahhaStat, rhs: SahhaStat) -> Bool {
-        return lhs.value > rhs.value
+    public static func > (lhs: SahhaSample, rhs: SahhaSample) -> Bool {
+        return lhs.startDateTime > rhs.startDateTime
     }
 }

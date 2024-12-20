@@ -83,7 +83,7 @@ class SahhaConfig {
         }
     }
     
-    static let sdkVersion: String = "1.0.8"
+    static let sdkVersion: String = "1.0.9"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
