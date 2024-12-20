@@ -264,7 +264,7 @@ extension SahhaSensor {
             "bps"
         case .active_energy_burned, .basal_energy_burned:
             "kcal"
-        case .sleep, .time_in_daylight, .stand_time, .move_time, .exercise_time:
+        case .sleep, .time_in_daylight, .stand_time, .move_time, .exercise_time, .exercise:
             "minute"
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             "degC"
@@ -278,7 +278,7 @@ extension SahhaSensor {
             "mg/dL"
         case .steps, .floors_climbed, .body_mass_index, .activity_summary:
             "count"
-        case .gender, .date_of_birth, .device_lock, .exercise, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
+        case .gender, .date_of_birth, .device_lock, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
             ""
         }
     }
