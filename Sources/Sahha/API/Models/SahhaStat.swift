@@ -30,6 +30,7 @@ public struct SahhaStat: Comparable, Codable {
         try container.encode(id, forKey: .id)
         try container.encode(type, forKey: .type)
         try container.encode(value, forKey: .value)
+        try container.encode(unit, forKey: .unit)
         try container.encode(startDateTime.toDateTime, forKey: .startDateTime)
         try container.encode(endDateTime.toDateTime, forKey: .endDateTime)
         try container.encode(sources, forKey: .sources)
