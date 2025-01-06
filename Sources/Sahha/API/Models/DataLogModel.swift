@@ -86,9 +86,9 @@ enum BloodRelationToMeal: String {
 }
 
 enum RecordingMethodIdentifier: String {
-    case automatically_recorded
-    case manual_entry
-    case unknown
+    case AUTOMATICALLY_RECORDED
+    case MANUAL_ENTRY
+    case UNKNOWN
 }
 
 public enum ActivitySummaryIdentifier: String {
