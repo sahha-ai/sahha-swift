@@ -241,25 +241,24 @@ internal class HealthActivity {
     init() {
         Task {
             await Self.dataManager.loadData()
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppStart), name: UIApplication.didFinishLaunchingNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppResume), name: UIApplication.didBecomeActiveNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppPause), name: UIApplication.willResignActiveNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onAppDestroy), name: UIApplication.willTerminateNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceUnlock), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
-            
-            NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
-            
             onAppCreate()
         }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppStart), name: UIApplication.didFinishLaunchingNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppResume), name: UIApplication.didBecomeActiveNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppPause), name: UIApplication.willResignActiveNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onAppDestroy), name: UIApplication.willTerminateNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceUnlock), name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(onDeviceLock), name: UIApplication.protectedDataWillBecomeUnavailableNotification, object: nil)
     }
     
     @objc fileprivate func onAppCreate() {
