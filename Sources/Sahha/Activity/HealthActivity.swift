@@ -216,6 +216,14 @@ fileprivate func getAnchor(sensor: SahhaSensor) -> HKQueryAnchor? {
     }
 }
 
+fileprivate func getRecordingMethod(_ sample: HKSample) -> RecordingMethodIdentifier {
+    var recordingMethod: RecordingMethodIdentifier = .UNKNOWN
+    if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
+        recordingMethod = .MANUAL_ENTRY
+    }
+    return recordingMethod
+}
+
 internal class HealthActivity {
     
     private static let isAvailable: Bool = HKHealthStore.isHealthDataAvailable()
@@ -706,29 +714,29 @@ internal class HealthActivity {
                                 let logType = SensorLogTypeIndentifier.energy
                                 let date = activitySummary.dateComponents(for: Calendar.current).date ?? Date()
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_total, value: activitySummary.appleStandHours.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_total, value: activitySummary.appleStandHours.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 
                                 if #available(iOS 16.0, *), let value = activitySummary.standHoursGoal?.doubleValue(for: .count()) {
-                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 } else {
-                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: activitySummary.appleStandHoursGoal.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .stand_hours_daily_goal, value: activitySummary.appleStandHoursGoal.doubleValue(for: .count()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 }
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_total, value: activitySummary.appleMoveTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_total, value: activitySummary.appleMoveTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_goal, value: activitySummary.appleMoveTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .move_time_daily_goal, value: activitySummary.appleMoveTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_total, value: activitySummary.appleExerciseTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_total, value: activitySummary.appleExerciseTime.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 
                                 if #available(iOS 16.0, *), let value = activitySummary.exerciseTimeGoal?.doubleValue(for: .minute()) {
-                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: value, source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 } else {
-                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                    requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .exercise_time_daily_goal, value: activitySummary.appleExerciseTimeGoal.doubleValue(for: .minute()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 }
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_total, value: activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_total, value: activitySummary.activeEnergyBurned.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                                 
-                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_goal, value: activitySummary.activeEnergyBurnedGoal.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
+                                requests.append(DataLogRequest(UUID(), logType: logType, activitySummary: .active_energy_burned_daily_goal, value: activitySummary.activeEnergyBurnedGoal.doubleValue(for: .largeCalorie()), source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date))
                             }
                             
                             await Self.dataManager.addDataLogs(requests, sensor: .activity_summary)
@@ -969,7 +977,8 @@ internal class HealthActivity {
                                 let sleepStage: SleepStage = Self.getSleepStage(sample: categorySample)
                                 let difference = Calendar.current.dateComponents([.minute], from: categorySample.startDate, to: categorySample.endDate)
                                 let value = Double(difference.minute ?? 0)
-                                let sahhaSample = SahhaSample(id: categorySample.uuid.uuidString, type: sleepStage.rawValue, value: value, unit: sensor.unitString, startDateTime: categorySample.startDate, endDateTime: categorySample.endDate, source: categorySample.sourceRevision.source.bundleIdentifier)
+                                let recordingMethod = getRecordingMethod(categorySample).rawValue
+                                let sahhaSample = SahhaSample(id: categorySample.uuid.uuidString, type: sleepStage.rawValue, value: value, unit: sensor.unitString, startDateTime: categorySample.startDate, endDateTime: categorySample.endDate, recordingMethod: recordingMethod, source: categorySample.sourceRevision.source.bundleIdentifier)
                                 sahhaSamples.append(sahhaSample)
                             }
                             
@@ -981,7 +990,8 @@ internal class HealthActivity {
                             for workoutSample in workoutSamples {
                                 let difference = Calendar.current.dateComponents([.minute], from: workoutSample.startDate, to: workoutSample.endDate)
                                 let value = Double(difference.minute ?? 0)
-                                let sahhaSample = SahhaSample(id: workoutSample.uuid.uuidString, type: "exercise_" + workoutSample.workoutActivityType.name, value: value, unit: sensor.unitString, startDateTime: workoutSample.startDate, endDateTime: workoutSample.endDate, source: workoutSample.sourceRevision.source.bundleIdentifier)
+                                let recordingMethod = getRecordingMethod(workoutSample).rawValue
+                                let sahhaSample = SahhaSample(id: workoutSample.uuid.uuidString, type: "exercise_" + workoutSample.workoutActivityType.name, value: value, unit: sensor.unitString, startDateTime: workoutSample.startDate, endDateTime: workoutSample.endDate, recordingMethod: recordingMethod, source: workoutSample.sourceRevision.source.bundleIdentifier)
                                 sahhaSamples.append(sahhaSample)
                             }
                         default:
@@ -997,7 +1007,8 @@ internal class HealthActivity {
                                 } else {
                                     value = 0
                                 }
-                                let sahhaSample = SahhaSample(id: quantitySample.uuid.uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDateTime: quantitySample.startDate, endDateTime: quantitySample.endDate, source: quantitySample.sourceRevision.source.bundleIdentifier)
+                                let recordingMethod = getRecordingMethod(quantitySample).rawValue
+                                let sahhaSample = SahhaSample(id: quantitySample.uuid.uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDateTime: quantitySample.startDate, endDateTime: quantitySample.endDate, recordingMethod: recordingMethod, source: quantitySample.sourceRevision.source.bundleIdentifier)
                                 sahhaSamples.append(sahhaSample)
                             }
                         }
@@ -1016,18 +1027,10 @@ internal class HealthActivity {
         }
     }
     
-    private func getRecordingMethod(_ sample: HKSample) -> RecordingMethodIdentifier {
-        var recordingMethod: RecordingMethodIdentifier = .unknown
-        if let wasUserEntered = sample.metadata?[HKMetadataKeyWasUserEntered] as? NSNumber, wasUserEntered.boolValue == true {
-            recordingMethod = .manual_entry
-        }
-        return recordingMethod
-    }
-    
     private func createAppLog(_ appLogType: AppLogType) {
         
         Task {
-            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
+            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
             
             await Self.dataManager.addDataLogs([request])
         }
@@ -1040,7 +1043,7 @@ internal class HealthActivity {
                 return
             }
             
-            let request = DataLogRequest(UUID(), sensor: .device_lock, value: isLocked ? 1 : 0, source: SahhaConfig.appId, recordingMethod: .automatically_recorded, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
+            let request = DataLogRequest(UUID(), sensor: .device_lock, value: isLocked ? 1 : 0, source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
             
             await Self.dataManager.addDataLogs([request], sensor: .device_lock)
         }
