@@ -790,9 +790,9 @@ internal class HealthActivity {
                 let options: HKStatisticsOptions
                 switch sensor {
                 case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
-                    options = HKStatisticsOptions.discreteAverage
+                    options = .discreteAverage
                 default:
-                    options = HKStatisticsOptions.cumulativeSum
+                    options = .separateBySource
                 }
                 let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
                 let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: start, intervalComponents: dateComponents)
