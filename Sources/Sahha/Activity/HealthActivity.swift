@@ -845,9 +845,9 @@ internal class HealthActivity {
         
         var start = Calendar.current.date(byAdding: .day, value: -1, to: startDateTime) ?? startDateTime
         start = Calendar.current.startOfDay(for: start)
-        start = Calendar.current.date(bySetting: .hour, value: 12, of: start) ?? start
+        start = Calendar.current.date(bySetting: .hour, value: 18, of: start) ?? start
         var end = Calendar.current.startOfDay(for: endDateTime)
-        end = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
+        end = Calendar.current.date(bySetting: .hour, value: 18, of: end) ?? end
         
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
