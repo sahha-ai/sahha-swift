@@ -83,11 +83,23 @@ class SahhaConfig {
         }
     }
     
-    static let sdkVersion: String = "1.1.0"
+    static let sdkVersion: String = "1.1.1"
     
     static let appId: String = Bundle.main.bundleIdentifier ?? ""
             
     static let appVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    
+    static var deviceId: String {
+        if let uuid = UIDevice.current.identifierForVendor?.uuidString {
+            return uuid
+        } else if let uuid = UserDefaults.standard.string(forKey: "deviceId") {
+            return uuid
+        } else {
+            let uuid = UUID().uuidString
+            UserDefaults.standard.set(uuid, forKey: "deviceId")
+            return uuid
+        }
+    }
         
     static let deviceType: String = UIDevice.current.model
 
