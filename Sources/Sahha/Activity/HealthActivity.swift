@@ -790,9 +790,9 @@ internal class HealthActivity {
                 let options: HKStatisticsOptions
                 switch sensor {
                 case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
-                    options = HKStatisticsOptions.discreteAverage
+                    options = .discreteAverage
                 default:
-                    options = HKStatisticsOptions.cumulativeSum
+                    options = .separateBySource
                 }
                 let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
                 let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: start, intervalComponents: dateComponents)
@@ -845,9 +845,9 @@ internal class HealthActivity {
         
         var start = Calendar.current.date(byAdding: .day, value: -1, to: startDateTime) ?? startDateTime
         start = Calendar.current.startOfDay(for: start)
-        start = Calendar.current.date(bySetting: .hour, value: 12, of: start) ?? start
+        start = Calendar.current.date(bySetting: .hour, value: 18, of: start) ?? start
         var end = Calendar.current.startOfDay(for: endDateTime)
-        end = Calendar.current.date(bySetting: .hour, value: 12, of: end) ?? end
+        end = Calendar.current.date(bySetting: .hour, value: 18, of: end) ?? end
         
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         let query = HKSampleQuery(sampleType: HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { sampleQuery, samplesOrNil, error in
@@ -885,46 +885,56 @@ internal class HealthActivity {
             var rollingInterval = DateInterval(start: start, duration: day)
             while rollingInterval.end <= end {
                 
-                var sleepStats: Dictionary<SleepStage, (value: Double, sources: Set<String>)> = [:]
-                for stage in SleepStage.allCases {
-                    sleepStats[stage] = (value: 0, sources: [])
+                typealias SleepSegment = Dictionary<String, Double>
+                var sleepStats: Dictionary<SleepStage, SleepSegment> = [:]
+                
+                func insertSleepSegment(sleepStage: SleepStage, source: String, value: Double) {
+                    if let sleepSegments = sleepStats[sleepStage] {
+                        var  newSleepSegments = sleepSegments
+                        if let oldValue = newSleepSegments[source] {
+                            newSleepSegments[source] = oldValue + value
+                        } else {
+                            newSleepSegments[source] = value
+                        }
+                        sleepStats[sleepStage] = newSleepSegments
+                    } else {
+                        sleepStats[sleepStage] = [source: value]
+                    }
                 }
                 
                 for sample in samples {
-                    if let sleepStage = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                    if let sleepSample = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
                         let sampleInterval = DateInterval(start: sample.startDate, end: sample.endDate)
                         if let intersection = sampleInterval.intersection(with: rollingInterval) {
-                            let sampleTime = intersection.duration / 60
                             let sampleSource = sample.sourceRevision.source.bundleIdentifier
-                            if isInBed(sleepStage) {
-                                sleepStats[.sleep_stage_in_bed]?.value += sampleTime
-                                sleepStats[.sleep_stage_in_bed]?.sources.insert(sampleSource)
-                            } else if isAsleep(sleepStage) {
-                                sleepStats[.sleep_stage_sleeping]?.value += sampleTime
-                                sleepStats[.sleep_stage_sleeping]?.sources.insert(sampleSource)
-                                switch sleepStage {
+                            let sampleValue = intersection.duration / 60
+                            if isInBed(sleepSample) {
+                                insertSleepSegment(sleepStage: .sleep_stage_in_bed, source: sampleSource, value: sampleValue)
+                            } else if isAsleep(sleepSample) {
+                                insertSleepSegment(sleepStage: .sleep_stage_sleeping, source: sampleSource, value: sampleValue)
+                                switch sleepSample {
                                 case .asleepREM:
-                                    sleepStats[.sleep_stage_rem]?.value += sampleTime
-                                    sleepStats[.sleep_stage_rem]?.sources.insert(sampleSource)
+                                    insertSleepSegment(sleepStage: .sleep_stage_rem, source: sampleSource, value: sampleValue)
                                 case .asleepCore:
-                                    sleepStats[.sleep_stage_light]?.value += sampleTime
-                                    sleepStats[.sleep_stage_light]?.sources.insert(sampleSource)
+                                    insertSleepSegment(sleepStage: .sleep_stage_light, source: sampleSource, value: sampleValue)
                                 case .asleepDeep:
-                                    sleepStats[.sleep_stage_deep]?.value += sampleTime
-                                    sleepStats[.sleep_stage_deep]?.sources.insert(sampleSource)
+                                    insertSleepSegment(sleepStage: .sleep_stage_deep, source: sampleSource, value: sampleValue)
                                 default:
-                                    sleepStats[.sleep_stage_unknown]?.value += sampleTime
-                                    sleepStats[.sleep_stage_unknown]?.sources.insert(sampleSource)
+                                    insertSleepSegment(sleepStage: .sleep_stage_unknown, source: sampleSource, value: sampleValue)
                                     break
                                 }
+                            } else {
+                                insertSleepSegment(sleepStage: .sleep_stage_unknown, source: sampleSource, value: sampleValue)
                             }
                         }
                     }
                 }
                 
-                for (key, value) in sleepStats {
-                    let stat = SahhaStat(id: UUID().uuidString, type: key == .sleep_stage_sleeping ? "sleep" : key.rawValue, value: value.value, unit: SahhaSensor.sleep.unitString, startDateTime: rollingInterval.start, endDateTime: rollingInterval.end, sources: Array(value.sources))
-                    stats.append(stat)
+                for (stageKey, stageValue) in sleepStats {
+                    for (sourceKey, sourceValue) in stageValue {
+                        let stat = SahhaStat(id: UUID().uuidString, type: stageKey == .sleep_stage_sleeping ? "sleep" : stageKey.rawValue, value: sourceValue, unit: SahhaSensor.sleep.unitString, startDateTime: rollingInterval.start, endDateTime: rollingInterval.end, sources: [sourceKey])
+                        stats.append(stat)
+                    }
                 }
                 
                 rollingInterval = DateInterval(start: rollingInterval.end, duration: day)

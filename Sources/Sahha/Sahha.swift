@@ -125,7 +125,7 @@ public class Sahha {
     }
     
     private static func putDeviceInfo() {
-        let body = SahhaErrorModel(sdkId: settings?.framework.rawValue ?? SahhaFramework.ios_swift.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
+        let body = SahhaErrorModel(sdkId: settings?.framework.rawValue ?? SahhaFramework.ios_swift.rawValue, sdkVersion: SahhaConfig.sdkVersion, appId: SahhaConfig.appId, appVersion: SahhaConfig.appVersion, deviceId: SahhaConfig.deviceId, deviceType: SahhaConfig.deviceType, deviceModel: SahhaConfig.deviceModel, system: SahhaConfig.system, systemVersion: SahhaConfig.systemVersion, timeZone: SahhaConfig.timeZone)
         APIController.putDeviceInfo(body: body) { result in
             switch result {
             case .success(_):
