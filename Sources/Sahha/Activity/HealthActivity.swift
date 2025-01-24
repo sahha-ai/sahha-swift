@@ -181,6 +181,7 @@ fileprivate enum AppLogType: String {
     case app_background
     case app_destroy
     case app_locked
+    case app_unlocked
 }
 
 fileprivate func setAnchorDate(_ date: Date?, sensor: SahhaSensor) {
@@ -292,11 +293,11 @@ internal class HealthActivity {
     }
     
     @objc fileprivate func onDeviceUnlock() {
-        createDeviceLog(false)
+        createAppLog(.app_unlocked)
     }
     
     @objc fileprivate func onDeviceLock() {
-        createDeviceLog(true)
+        createAppLog(.app_locked)
     }
     
     func clearData() {
@@ -1039,22 +1040,16 @@ internal class HealthActivity {
     private func createAppLog(_ appLogType: AppLogType) {
         
         Task {
-            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
-            
+            let date = Date()
+            let today = date.toYYYYMMDD
+            let keyName = "app_events_" + today
+            var strings = UserDefaults.standard.stringArray(forKey: keyName) ?? []
+            let dateStamp = date.toDateTime
+            strings.append(dateStamp + "  |  " + appLogType.rawValue)
+            UserDefaults.standard.set(strings, forKey: keyName)
+            let request = DataLogRequest(UUID(), logType: "device", dataType: appLogType.rawValue, value: 0, unit: "", source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: date, endDate: date)
+            debugPrint(appLogType.rawValue, date.toDateTime)
             await Self.dataManager.addDataLogs([request])
-        }
-    }
-    
-    private func createDeviceLog(_ isLocked: Bool) {
-        
-        Task {
-            guard await Self.dataManager.containsSensor(.device_lock) else {
-                return
-            }
-            
-            let request = DataLogRequest(UUID(), sensor: .device_lock, value: isLocked ? 1 : 0, source: SahhaConfig.appId, recordingMethod: .AUTOMATICALLY_RECORDED, deviceType: SahhaConfig.deviceType, startDate: Date(), endDate: Date())
-            
-            await Self.dataManager.addDataLogs([request], sensor: .device_lock)
         }
     }
     
