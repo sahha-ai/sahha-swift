@@ -792,7 +792,7 @@ internal class HealthActivity {
                 case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight:
                     options = .discreteAverage
                 default:
-                    options = .separateBySource
+                    options = .cumulativeSum
                 }
                 let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
                 let query = HKStatisticsCollectionQuery(quantityType: quantityType, quantitySamplePredicate: predicate, options: options, anchorDate: start, intervalComponents: dateComponents)
@@ -827,6 +827,10 @@ internal class HealthActivity {
                             let stat = SahhaStat(id: UUID().uuidString, type: sensor.rawValue, value: value, unit: sensor.unitString, startDateTime: result.startDate, endDateTime: result.endDate, sources: sources)
                             stats.append(stat)
                         }
+                    }
+                    
+                    stats.sort {
+                        $0.value > $1.value
                     }
                     
                     callback(nil, stats)
