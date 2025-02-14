@@ -62,17 +62,6 @@ enum SensorLogTypeIndentifier: String {
     case exercise
 }
 
-enum SensorCategoryIndentifier: String {
-    case reproductive
-    case sleep
-    case vitals
-    case activity
-    case body
-    case characteristic
-    case exercise
-    case device
-}
-
 enum DataLogPropertyIdentifier: String {
     case bodyPosition
     case measurementLocation
