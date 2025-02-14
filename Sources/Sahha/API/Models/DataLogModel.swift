@@ -12,6 +12,7 @@ struct DataLogRequest: Codable {
     var source: String
     var recordingMethod: String
     var deviceType: String
+    var deviceId: String = SahhaConfig.deviceId
     var startDateTime: String
     var endDateTime: String
     var additionalProperties: [String: String]?
@@ -59,6 +60,17 @@ enum SensorLogTypeIndentifier: String {
     case temperature
     case body
     case exercise
+}
+
+enum SensorCategoryIndentifier: String {
+    case reproductive
+    case sleep
+    case vitals
+    case activity
+    case body
+    case characteristic
+    case exercise
+    case device
 }
 
 enum DataLogPropertyIdentifier: String {
@@ -119,6 +131,83 @@ public enum ActivitySummaryIdentifier: String {
 }
     
 extension SahhaSensor {
+    
+    init?(quantityType: HKQuantityType) {
+        
+        if #available(iOS 14.5, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.appleMoveTime.rawValue {
+                self = .move_time
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.appleSleepingWristTemperature.rawValue {
+                self = .sleeping_wrist_temperature
+                return
+            }
+        }
+        
+        if #available(iOS 17.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.timeInDaylight.rawValue {
+                self = .time_in_daylight
+                return
+            }
+        }
+        
+        switch quantityType.identifier {
+        case HKQuantityTypeIdentifier.stepCount.rawValue:
+            self = .steps
+        case HKQuantityTypeIdentifier.flightsClimbed.rawValue:
+            self = .floors_climbed
+        case HKQuantityTypeIdentifier.heartRate.rawValue:
+            self = .heart_rate
+        case HKQuantityTypeIdentifier.restingHeartRate.rawValue:
+            self = .resting_heart_rate
+        case HKQuantityTypeIdentifier.walkingHeartRateAverage.rawValue:
+            self = .walking_heart_rate_average
+        case HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue:
+            self = .heart_rate_variability_sdnn
+        case HKQuantityTypeIdentifier.bloodPressureSystolic.rawValue:
+            self = .blood_pressure_systolic
+        case HKQuantityTypeIdentifier.bloodPressureDiastolic.rawValue:
+            self = .blood_pressure_diastolic
+        case HKQuantityTypeIdentifier.bloodGlucose.rawValue:
+            self = .blood_glucose
+        case HKQuantityTypeIdentifier.vo2Max.rawValue:
+            self = .vo2_max
+        case HKQuantityTypeIdentifier.oxygenSaturation.rawValue:
+            self = .oxygen_saturation
+        case HKQuantityTypeIdentifier.respiratoryRate.rawValue:
+            self = .respiratory_rate
+        case HKQuantityTypeIdentifier.activeEnergyBurned.rawValue:
+            self = .active_energy_burned
+        case HKQuantityTypeIdentifier.basalEnergyBurned.rawValue:
+            self = .basal_energy_burned
+        case HKQuantityTypeIdentifier.bodyTemperature.rawValue:
+            self = .body_temperature
+        case HKQuantityTypeIdentifier.basalBodyTemperature.rawValue:
+            self = .basal_body_temperature
+        case HKQuantityTypeIdentifier.height.rawValue:
+            self = .height
+        case HKQuantityTypeIdentifier.bodyMass.rawValue:
+            self = .weight
+        case HKQuantityTypeIdentifier.leanBodyMass.rawValue:
+            self = .lean_body_mass
+        case HKQuantityTypeIdentifier.bodyMassIndex.rawValue:
+            self = .body_mass_index
+        case HKQuantityTypeIdentifier.bodyFatPercentage.rawValue:
+            self = .body_fat
+        case HKQuantityTypeIdentifier.waistCircumference.rawValue:
+            self = .waist_circumference
+        case HKQuantityTypeIdentifier.appleStandTime.rawValue:
+            self = .stand_time
+        case HKQuantityTypeIdentifier.appleExerciseTime.rawValue:
+            self = .exercise_time
+        default:
+            return nil
+        }
+    }
     
     var keyName: String {
         "sahha_".appending(self.rawValue)
@@ -301,6 +390,25 @@ extension SahhaSensor {
             .energy
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             .temperature
+        case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference, .body_water_mass, .bone_mass:
+            .body
+        case .device_lock:
+            .device
+        case .exercise:
+            .exercise
+        }
+    }
+    
+    internal var category: SahhaBiomarkerCategory {
+        return switch self {
+        case .gender, .date_of_birth:
+            .characteristic
+        case .sleep:
+            .sleep
+        case .steps, .floors_climbed, .move_time, .stand_time, .exercise_time, .activity_summary, .active_energy_burned, .basal_energy_burned, .total_energy_burned, .basal_metabolic_rate, .time_in_daylight:
+            .activity
+        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .heart_rate_variability_rmssd, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .oxygen_saturation, .vo2_max, .respiratory_rate, .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
+                .vitals
         case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference, .body_water_mass, .bone_mass:
             .body
         case .device_lock:

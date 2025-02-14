@@ -1,6 +1,7 @@
 // Copyright © 2022 Sahha. All rights reserved.
 
 import SwiftUI
+import HealthKit
 
 public enum SahhaEnvironment: String {
     case sandbox
