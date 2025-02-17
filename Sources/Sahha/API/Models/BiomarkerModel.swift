@@ -14,6 +14,8 @@ public enum SahhaBiomarkerCategory: String {
     case reproductive
     case sleep
     case vitals
+    case exercise
+    case device
 }
 
 public enum SahhaBiomarkerType: String {
