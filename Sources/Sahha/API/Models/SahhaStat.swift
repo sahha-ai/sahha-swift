@@ -8,6 +8,7 @@ public enum SahhaStatInterval: String  {
 
 public struct SahhaStat: Comparable, Codable {
     public var id: String
+    public var category: String
     public var type: String
     public var value: Double
     public var unit: String
@@ -15,8 +16,9 @@ public struct SahhaStat: Comparable, Codable {
     public var endDateTime: Date
     public var sources: [String]
     
-    public init(id: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, sources: [String]) {
+    public init(id: String, category: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, sources: [String]) {
         self.id = id
+        self.category = category
         self.type = type
         self.value = value
         self.unit = unit
@@ -28,6 +30,7 @@ public struct SahhaStat: Comparable, Codable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try container.encode(category, forKey: .category)
         try container.encode(type, forKey: .type)
         try container.encode(value, forKey: .value)
         try container.encode(unit, forKey: .unit)
