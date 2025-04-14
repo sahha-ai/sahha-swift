@@ -10,16 +10,20 @@ public struct SahhaStat: Comparable, Codable {
     public var id: String
     public var category: String
     public var type: String
+    public var aggregation: String
+    public var periodicity: String
     public var value: Double
     public var unit: String
     public var startDateTime: Date
     public var endDateTime: Date
     public var sources: [String]
     
-    public init(id: String, category: String, type: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, sources: [String]) {
+    public init(id: String, category: String, type: String, aggregation: String, periodicity: String, value: Double, unit: String, startDateTime: Date, endDateTime: Date, sources: [String]) {
         self.id = id
         self.category = category
         self.type = type
+        self.aggregation = aggregation
+        self.periodicity = periodicity
         self.value = value
         self.unit = unit
         self.startDateTime = startDateTime
