@@ -23,6 +23,19 @@ public enum SahhaSensor: String, CaseIterable {
     case sleep
     case steps
     case floors_climbed
+    case running_speed
+    case running_power
+    case running_ground_contact_time
+    case running_stride_length
+    case running_vertical_oscillation
+    case six_minute_walk_test_distance
+    case stair_ascent_speed
+    case stair_descent_speed
+    case walking_speed
+    case walking_steadiness
+    case walking_asymmetry_percentage
+    case walking_double_support_percentage
+    case walking_step_length
     case heart_rate
     case resting_heart_rate
     case walking_heart_rate_average
