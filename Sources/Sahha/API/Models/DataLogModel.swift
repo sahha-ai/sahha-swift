@@ -15,9 +15,10 @@ struct DataLogRequest: Codable {
     var deviceId: String = SahhaConfig.deviceId
     var startDateTime: String
     var endDateTime: String
+    var postDateTime: String = Date().toDateTime
+    var aggregation: String?
+    var periodicity: String?
     var additionalProperties: [String: String]?
-    var postDateTimes: [String]?
-    var modifiedDateTime: String?
     var parentId: String?
     
     init(_ uuid: UUID, sensor: SahhaSensor, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
@@ -30,6 +31,28 @@ struct DataLogRequest: Codable {
     
     init(_ uuid: UUID, logType: SensorLogTypeIndentifier, activitySummary: ActivitySummaryIdentifier, value: Double, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
         self.init(uuid, logType: logType.rawValue, dataType: activitySummary.rawValue, value: value, unit: activitySummary.unitString, source: source, recordingMethod: recordingMethod, deviceType: deviceType, startDate: startDate, endDate: endDate, additionalProperties: additionalProperties, parentId: parentId)
+    }
+    
+    init(stat: SahhaStat) {
+        self.id = stat.id
+        self.logType = stat.category
+        self.dataType = stat.type
+        self.value = stat.value
+        self.unit = stat.unit
+        if stat.sources.isEmpty {
+            self.source = "unknown"
+        } else if stat.sources.count == 1, let source = stat.sources.first {
+            self.source = source
+        } else {
+            self.source = "mixed"
+            self.additionalProperties = ["sources" : stat.sources.joined(separator: ",")]
+        }
+        self.recordingMethod = "unknown"
+        self.deviceType = "unknown"
+        self.startDateTime = stat.startDateTime.toDateTime
+        self.endDateTime = stat.endDateTime.toDateTime
+        self.aggregation = stat.aggregation
+        self.periodicity = stat.periodicity
     }
     
     init(_ uuid: UUID, logType: String, dataType: String, value: Double, unit: String, source: String, recordingMethod: RecordingMethodIdentifier, deviceType: String, startDate: Date, endDate: Date, additionalProperties: [String: String]? = nil, parentId: UUID? = nil) {
@@ -70,6 +93,16 @@ enum DataLogPropertyIdentifier: String {
     case relationToMeal
 }
 
+enum AggregationIdentifier: String {
+    case sum
+    case avg
+}
+
+enum PeriodicityIdentifier: String {
+    case hourly
+    case daily
+}
+
 enum SleepStage: String, CaseIterable {
     case sleep_stage_unknown
     case sleep_stage_in_bed
@@ -80,6 +113,17 @@ enum SleepStage: String, CaseIterable {
     case sleep_stage_sleeping
 }
 
+enum SleepAggregate: String, CaseIterable {
+    case sleep_duration
+    case sleep_unknown_duration
+    case sleep_in_bed_duration
+    case sleep_awake_duration
+    case sleep_rem_duration
+    case sleep_light_duration
+    case sleep_deep_duration
+    case sleep_interruptions
+}
+
 enum BloodRelationToMeal: String {
     case unknown
     case before_meal
@@ -87,9 +131,9 @@ enum BloodRelationToMeal: String {
 }
 
 enum RecordingMethodIdentifier: String {
-    case AUTOMATICALLY_RECORDED
-    case MANUAL_ENTRY
-    case UNKNOWN
+    case automatically_recorded
+    case manual_entry
+    case unknown
 }
 
 public enum ActivitySummaryIdentifier: String {
@@ -144,11 +188,67 @@ extension SahhaSensor {
             }
         }
         
+        if #available(iOS 15.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.appleWalkingSteadiness.rawValue {
+                self = .walking_steadiness
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.runningSpeed.rawValue {
+                self = .running_speed
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.runningPower.rawValue {
+                self = .running_power
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.runningGroundContactTime.rawValue {
+                self = .running_ground_contact_time
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.runningStrideLength.rawValue {
+                self = .running_stride_length
+                return
+            }
+        }
+        
+        if #available(iOS 16.0, *) {
+            if quantityType.identifier == HKQuantityTypeIdentifier.runningVerticalOscillation.rawValue {
+                self = .running_vertical_oscillation
+                return
+            }
+        }
+        
         switch quantityType.identifier {
         case HKQuantityTypeIdentifier.stepCount.rawValue:
             self = .steps
         case HKQuantityTypeIdentifier.flightsClimbed.rawValue:
             self = .floors_climbed
+        case HKQuantityTypeIdentifier.stairAscentSpeed.rawValue:
+            self = .stair_ascent_speed
+        case HKQuantityTypeIdentifier.stairDescentSpeed.rawValue:
+            self = .stair_descent_speed
+        case HKQuantityTypeIdentifier.walkingSpeed.rawValue:
+            self = .walking_speed
+        case HKQuantityTypeIdentifier.walkingAsymmetryPercentage.rawValue:
+            self = .walking_asymmetry_percentage
+        case HKQuantityTypeIdentifier.walkingDoubleSupportPercentage.rawValue:
+            self = .walking_double_support_percentage
+        case HKQuantityTypeIdentifier.walkingStepLength.rawValue:
+            self = .walking_step_length
+        case HKQuantityTypeIdentifier.sixMinuteWalkTestDistance.rawValue:
+            self = .six_minute_walk_test_distance
         case HKQuantityTypeIdentifier.heartRate.rawValue:
             self = .heart_rate
         case HKQuantityTypeIdentifier.restingHeartRate.rawValue:
@@ -210,6 +310,84 @@ extension SahhaSensor {
             HKSampleType.quantityType(forIdentifier: .stepCount)!
         case .floors_climbed:
             HKSampleType.quantityType(forIdentifier: .flightsClimbed)!
+        case .walking_steadiness:
+            if #available(iOS 15.0, *) {
+                HKSampleType.quantityType(forIdentifier: .appleWalkingSteadiness)!
+            } else {
+                nil
+            }
+        case .running_speed:
+            if #available(iOS 16.0, *) {
+                HKSampleType.quantityType(forIdentifier: .runningSpeed)!
+            } else {
+                nil
+            }
+        case .running_power:
+            if #available(iOS 16.0, *) {
+                HKSampleType.quantityType(forIdentifier: .runningPower)!
+            } else {
+                nil
+            }
+        case .running_ground_contact_time:
+            if #available(iOS 16.0, *) {
+                HKSampleType.quantityType(forIdentifier: .runningGroundContactTime)!
+            } else {
+                nil
+            }
+        case .running_stride_length:
+            if #available(iOS 16.0, *) {
+                HKSampleType.quantityType(forIdentifier: .runningStrideLength)!
+            } else {
+                nil
+            }
+        case .running_vertical_oscillation:
+            if #available(iOS 16.0, *) {
+                HKSampleType.quantityType(forIdentifier: .runningVerticalOscillation)!
+            } else {
+                nil
+            }
+        case .six_minute_walk_test_distance:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .sixMinuteWalkTestDistance)!
+            } else {
+                nil
+            }
+        case .stair_ascent_speed:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .stairAscentSpeed)!
+            } else {
+                nil
+            }
+        case .stair_descent_speed:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .stairDescentSpeed)!
+            } else {
+                nil
+            }
+        case .walking_asymmetry_percentage:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .walkingAsymmetryPercentage)!
+            } else {
+                nil
+            }
+        case .walking_double_support_percentage:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .walkingDoubleSupportPercentage)!
+            } else {
+                nil
+            }
+        case .walking_speed:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .walkingSpeed)!
+            } else {
+                nil
+            }
+        case .walking_step_length:
+            if #available(iOS 14.0, *) {
+                HKSampleType.quantityType(forIdentifier: .walkingStepLength)!
+            } else {
+                nil
+            }
         case .heart_rate:
             HKSampleType.quantityType(forIdentifier: .heartRate)!
         case .resting_heart_rate:
@@ -299,11 +477,11 @@ extension SahhaSensor {
         return switch self {
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average:
             .count().unitDivided(by: .minute())
-        case .heart_rate_variability_sdnn:
+        case .heart_rate_variability_sdnn, .running_ground_contact_time:
             .secondUnit(with: .milli)
         case .vo2_max:
             HKUnit(from: "ml/kg*min")
-        case .oxygen_saturation, .body_fat:
+        case .oxygen_saturation, .body_fat, .walking_steadiness, .walking_asymmetry_percentage, .walking_double_support_percentage:
             .percent()
         case .respiratory_rate:
             .count().unitDivided(by: .second())
@@ -313,8 +491,18 @@ extension SahhaSensor {
             .minute()
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             .degreeCelsius()
-        case .height, .waist_circumference:
+        case .height, .waist_circumference, .running_stride_length, .six_minute_walk_test_distance, .walking_step_length:
             .meter()
+        case .running_vertical_oscillation:
+                .meterUnit(with: .centi)
+        case .stair_ascent_speed, .stair_descent_speed, .walking_speed, .running_speed:
+                .meter().unitDivided(by: .second())
+        case .running_power:
+            if #available(iOS 16.0, *) {
+                .watt()
+            } else {
+                nil
+            }
         case .weight, .lean_body_mass:
             .gramUnit(with: .kilo)
         case .blood_pressure_systolic, .blood_pressure_diastolic:
@@ -332,11 +520,11 @@ extension SahhaSensor {
         return switch self {
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average:
             "bpm"
-        case .heart_rate_variability_sdnn:
+        case .heart_rate_variability_sdnn, .running_ground_contact_time:
             "ms"
         case .vo2_max:
             "ml/kg/min"
-        case .oxygen_saturation, .body_fat:
+        case .oxygen_saturation, .body_fat, .walking_steadiness, .walking_asymmetry_percentage, .walking_double_support_percentage:
             "percent"
         case .respiratory_rate:
             "bps"
@@ -346,8 +534,14 @@ extension SahhaSensor {
             "minute"
         case .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
             "degC"
-        case .height, .waist_circumference:
+        case .height, .waist_circumference, .running_stride_length, .six_minute_walk_test_distance, .walking_step_length:
             "m"
+        case .running_vertical_oscillation:
+            "cm"
+        case .stair_ascent_speed, .stair_descent_speed, .walking_speed, .running_speed:
+            "m/s"
+        case .running_power:
+            "watt"
         case .weight, .lean_body_mass:
             "kg"
         case .blood_pressure_systolic, .blood_pressure_diastolic:
@@ -367,7 +561,7 @@ extension SahhaSensor {
             .demographic
         case .sleep:
             .sleep
-        case .steps, .floors_climbed, .move_time, .stand_time, .exercise_time, .activity_summary:
+        case .steps, .floors_climbed, .move_time, .stand_time, .exercise_time, .activity_summary, .walking_asymmetry_percentage, .walking_speed, .walking_steadiness, .walking_double_support_percentage, .walking_step_length, .running_speed, .running_power, .running_ground_contact_time, .running_stride_length, .running_vertical_oscillation, .six_minute_walk_test_distance, .stair_ascent_speed, .stair_descent_speed:
             .activity
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .heart_rate_variability_rmssd:
             .heart
@@ -391,19 +585,28 @@ extension SahhaSensor {
     internal var category: SahhaBiomarkerCategory {
         return switch self {
         case .gender, .date_of_birth:
-            .characteristic
+                .characteristic
         case .sleep:
-            .sleep
-        case .steps, .floors_climbed, .move_time, .stand_time, .exercise_time, .activity_summary, .active_energy_burned, .basal_energy_burned, .total_energy_burned, .basal_metabolic_rate, .time_in_daylight:
-            .activity
+                .sleep
+        case .steps, .floors_climbed, .move_time, .stand_time, .exercise_time, .activity_summary, .active_energy_burned, .basal_energy_burned, .total_energy_burned, .basal_metabolic_rate, .time_in_daylight, .walking_steadiness, .running_ground_contact_time, .running_speed, .running_power, .running_stride_length, .running_vertical_oscillation, .six_minute_walk_test_distance, .stair_ascent_speed, .stair_descent_speed, .walking_asymmetry_percentage, .walking_double_support_percentage, .walking_speed, .walking_step_length:
+                .activity
         case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .heart_rate_variability_rmssd, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .oxygen_saturation, .vo2_max, .respiratory_rate, .body_temperature, .basal_body_temperature, .sleeping_wrist_temperature:
                 .vitals
         case .height, .weight, .lean_body_mass, .body_mass_index, .body_fat, .waist_circumference, .body_water_mass, .bone_mass:
-            .body
+                .body
         case .device_lock:
-            .device
+                .device
         case .exercise:
-            .exercise
+                .exercise
+        }
+    }
+    
+    internal var statsOptions: HKStatisticsOptions {
+        return switch self {
+        case .heart_rate, .resting_heart_rate, .walking_heart_rate_average, .heart_rate_variability_sdnn, .blood_pressure_systolic, .blood_pressure_diastolic, .blood_glucose, .vo2_max, .oxygen_saturation, .respiratory_rate, .sleeping_wrist_temperature, .basal_body_temperature, .body_temperature, .basal_metabolic_rate, .height, .weight, .lean_body_mass, .body_mass_index, .body_water_mass, .body_fat, .waist_circumference, .walking_speed, .six_minute_walk_test_distance, .walking_asymmetry_percentage, .walking_double_support_percentage, .walking_steadiness, .walking_step_length, .stair_ascent_speed, .stair_descent_speed, .running_speed, .running_power, .running_ground_contact_time, .running_stride_length, .running_vertical_oscillation:
+                .discreteAverage
+        default:
+                .cumulativeSum
         }
     }
 }
