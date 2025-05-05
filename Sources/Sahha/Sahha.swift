@@ -185,7 +185,7 @@ public class Sahha {
         health.enableSensors(sensors, callback)
     }
     
-    public static func postSensorData() {
+    public static func pingSensors() {
         health.querySensors()
     }
     
