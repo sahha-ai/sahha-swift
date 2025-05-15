@@ -621,8 +621,10 @@ internal class HealthActivity {
     
     private func querySensor(_ sensor: SahhaSensor) {
         guard Self.isAvailable, Sahha.isAuthenticated else { return }
-        guard sensor != .heart_rate else { return }
-        //        guard sensor != .heart_rate else { return self.queryRateHeart(); }
+        
+        // Different processing for heart rate sensors
+        guard sensor != .heart_rate else { return self.queryRateHeart(); }
+        
         guard let sampleType = sensor.objectType as? HKSampleType else { return }
         
         Self.store.getRequestStatusForAuthorization(toShare: [], read: [sampleType]) { [weak self] status, _ in
