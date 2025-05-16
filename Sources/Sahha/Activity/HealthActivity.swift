@@ -620,6 +620,7 @@ internal class HealthActivity {
     }
     
     private func querySensor(_ sensor: SahhaSensor) {
+        print("Querying sensor: \(sensor)")
         guard Self.isAvailable, Sahha.isAuthenticated else { return }
         
         // Different processing for heart rate sensors
@@ -910,8 +911,8 @@ internal class HealthActivity {
     private func aggregateHeartRate(_ samples: [HKQuantitySample], upTo endDate: Date, sensor: SahhaSensor) -> [DataLogRequest] {
         let samplesInRange = samples.filter { $0.startDate < endDate }
         
-        // Threshold for long samples: >10 seconds
-        let longSamples = samplesInRange.filter { $0.endDate.timeIntervalSince($0.startDate) > 10 }
+        // Threshold for long samples: >300 seconds - 5 minutes
+        let longSamples = samplesInRange.filter { $0.endDate.timeIntervalSince($0.startDate) > 300 }
         let shortSamples = samplesInRange.filter { $0.endDate.timeIntervalSince($0.startDate) <= 10 }
         
         // Group short samples into 5-min buckets
