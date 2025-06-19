@@ -83,6 +83,7 @@ enum SensorLogTypeIndentifier: String {
     case temperature
     case body
     case exercise
+    case nutrition
 }
 
 enum DataLogPropertyIdentifier: String {
@@ -293,6 +294,8 @@ extension SahhaSensor {
             self = .stand_time
         case HKQuantityTypeIdentifier.appleExerciseTime.rawValue:
             self = .exercise_time
+        case HKQuantityTypeIdentifier.dietaryEnergyConsumed.rawValue:
+            self = .energy_consumed
         default:
             return nil
         }
@@ -470,6 +473,8 @@ extension SahhaSensor {
             nil
         case .bone_mass:
             nil
+        case .energy_consumed:
+            HKQuantityType.quantityType(forIdentifier: .dietaryEnergyConsumed)!
         }
     }
     
@@ -485,7 +490,7 @@ extension SahhaSensor {
             .percent()
         case .respiratory_rate:
             .count().unitDivided(by: .second())
-        case .active_energy_burned, .basal_energy_burned:
+        case .active_energy_burned, .basal_energy_burned, .energy_consumed:
             .largeCalorie()
         case .time_in_daylight, .stand_time, .move_time, .exercise_time:
             .minute()
@@ -528,7 +533,7 @@ extension SahhaSensor {
             "percent"
         case .respiratory_rate:
             "bps"
-        case .active_energy_burned, .basal_energy_burned:
+        case .active_energy_burned, .basal_energy_burned, .energy_consumed:
             "kcal"
         case .sleep, .time_in_daylight, .stand_time, .move_time, .exercise_time, .exercise:
             "minute"
@@ -579,6 +584,8 @@ extension SahhaSensor {
             .device
         case .exercise:
             .exercise
+        case .energy_consumed:
+            .nutrition
         }
     }
     
@@ -598,6 +605,8 @@ extension SahhaSensor {
                 .device
         case .exercise:
                 .exercise
+        case .energy_consumed:
+                .nutrition
         }
     }
     
