@@ -74,7 +74,7 @@ fileprivate actor DataManager {
                 let dataLog = try decoder.decode(DataLogRequest.self, from: encodedDataLog)
                 savedDataLogs.append(dataLog)
             } catch {
-                break
+                continue
             }
         }
         
@@ -397,9 +397,7 @@ internal class HealthActivity {
         
         var objectTypes: Set<HKObjectType> = []
         for healthType in sensors {
-            if let objectType = healthType.objectType {
-                objectTypes.insert(objectType)
-            }
+            objectTypes.formUnion(healthType.objectType)
         }
         
         guard objectTypes.isEmpty == false else {
@@ -434,10 +432,8 @@ internal class HealthActivity {
         }
         
         var objectTypes: Set<HKObjectType> = []
-        for sensor in sensors {
-            if let objectType = sensor.objectType {
-                objectTypes.insert(objectType)
-            }
+        for healthType in sensors {
+            objectTypes.formUnion(healthType.objectType)
         }
         
         guard objectTypes.isEmpty == false else {
@@ -504,10 +500,8 @@ internal class HealthActivity {
             return
         }
         
-        if let objectType = sensor.objectType {
-            
-            Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { [weak self] status, errorOrNil in
-                
+        if !sensor.objectType.isEmpty {
+            Self.store.getRequestStatusForAuthorization(toShare: [], read: Set(sensor.objectType)) { [weak self] status, errorOrNil in
                 if let error = errorOrNil {
                     print(error.localizedDescription)
                     Sahha.postError(message: error.localizedDescription, path: "HealthActivity", method: "monitorSensor", body: "store.getRequestStatusForAuthorization " + error.localizedDescription)
@@ -516,7 +510,7 @@ internal class HealthActivity {
                 
                 switch status {
                 case .unnecessary:
-                    if let sampleType = objectType as? HKSampleType {
+                    if let sampleType = sensor.objectType.first as? HKSampleType {
                         // HKObserverQuery is the only query type that can run in the background - we then need to use HKAnchoredObjectQuery once the app is notified of a change to the HealthKit Store
                         let query = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] (query, completionHandler, errorOrNil) in
                             if let error = errorOrNil {
@@ -573,12 +567,11 @@ internal class HealthActivity {
             return
         }
         
-        if let objectType = sensor.objectType {
-            
-            Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { status, error in
+        if !sensor.objectType.isEmpty {
+            Self.store.getRequestStatusForAuthorization(toShare: [], read: Set(sensor.objectType)) { [weak self] status, errorOrNil in
                 switch status {
                 case .unnecessary:
-                    if let sampleType = sensor.objectType as? HKSampleType {
+                    if let sampleType = sensor.objectType.first as? HKSampleType {
                         let startDate = getAnchorDate(sensor: sensor) ?? Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
                         let endDate = Date()
                         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: HKQueryOptions.strictEndDate)
@@ -649,7 +642,7 @@ internal class HealthActivity {
             return
         }
         
-        Self.store.getRequestStatusForAuthorization(toShare: [], read: [SahhaSensor.activity_summary.objectType!]) { status, error in
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: Set(SahhaSensor.activity_summary.objectType)) { status, error in
             
             switch status {
             case .unnecessary:
@@ -765,23 +758,20 @@ internal class HealthActivity {
         return nil
     }
     
-    internal func getStats(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat])->Void)  {
-        
+    internal func getStats(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (_ error: String?, _ stats: [SahhaStat]) -> Void) {
         guard Self.isAvailable else {
             callback("Health data is not available on this device", [])
             return
         }
         
-        guard let objectType = sensor.objectType else {
+        guard !sensor.objectType.isEmpty else {
             callback("Stats are not available for \(sensor.keyName)", [])
             return
         }
         
-        Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { [weak self] status, error in
-            
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: Set(sensor.objectType)) { [weak self] status, error in
             switch status {
             case .unnecessary:
-                
                 switch sensor {
                 case .sleep:
                     self?.getSleepStats(startDateTime: startDateTime, endDateTime: endDateTime, periodicity: .daily, callback: callback)
@@ -790,7 +780,6 @@ internal class HealthActivity {
                 default:
                     self?.getQuantityStats(sensor: sensor, startDateTime: startDateTime, endDateTime: endDateTime, periodicity: .daily, callback: callback)
                 }
-                
             default:
                 callback("User permission is not granted for \(sensor.keyName)", [])
                 return
@@ -1049,26 +1038,23 @@ internal class HealthActivity {
         Self.store.execute(query)
     }
     
-    internal func getSamples(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (_ error: String?, _ samples: [SahhaSample])->Void)  {
-        
+    internal func getSamples(sensor: SahhaSensor, startDateTime: Date, endDateTime: Date, callback: @escaping (_ error: String?, _ samples: [SahhaSample]) -> Void) {
         guard Self.isAvailable else {
             callback("Health data is not available on this device", [])
             return
         }
         
-        guard let objectType = sensor.objectType else {
+        guard !sensor.objectType.isEmpty else {
             callback("Sahha | Samples not available for \(sensor.rawValue)", [])
             return
         }
         
-        Self.store.getRequestStatusForAuthorization(toShare: [], read: [objectType]) { status, error in
+        Self.store.getRequestStatusForAuthorization(toShare: [], read: Set(sensor.objectType)) { status, error in
             switch status {
             case .unnecessary:
-                if let sampleType = sensor.objectType as? HKSampleType {
-                    
+                if let sampleType = sensor.objectType.first as? HKSampleType {
                     let predicate = HKQuery.predicateForSamples(withStart: startDateTime, end: endDateTime)
-                    let startDateDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
-                                                               ascending: true)
+                    let startDateDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
                     let query = HKSampleQuery(sampleType: sampleType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [startDateDescriptor]) { sampleQuery, samplesOrNil, errorOrNil in
                         if let error = errorOrNil {
                             callback(error.localizedDescription, [])
