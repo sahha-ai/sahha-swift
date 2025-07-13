@@ -305,176 +305,170 @@ extension SahhaSensor {
         "sahha_".appending(self.rawValue)
     }
     
-    var objectType: HKObjectType? {
-        return switch self {
+    var objectType: [HKObjectType] {
+        switch self {
         case .sleep:
-            HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            return [HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!]
         case .steps:
-            HKSampleType.quantityType(forIdentifier: .stepCount)!
+            return [HKSampleType.quantityType(forIdentifier: .stepCount)!]
         case .floors_climbed:
-            HKSampleType.quantityType(forIdentifier: .flightsClimbed)!
+            return [HKSampleType.quantityType(forIdentifier: .flightsClimbed)!]
         case .walking_steadiness:
             if #available(iOS 15.0, *) {
-                HKSampleType.quantityType(forIdentifier: .appleWalkingSteadiness)!
+                return [HKSampleType.quantityType(forIdentifier: .appleWalkingSteadiness)!]
             } else {
-                nil
+                return []
             }
         case .running_speed:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .runningSpeed)!
+                return [HKSampleType.quantityType(forIdentifier: .runningSpeed)!]
             } else {
-                nil
+                return []
             }
         case .running_power:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .runningPower)!
+                return [HKSampleType.quantityType(forIdentifier: .runningPower)!]
             } else {
-                nil
+                return []
             }
         case .running_ground_contact_time:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .runningGroundContactTime)!
+                return [HKSampleType.quantityType(forIdentifier: .runningGroundContactTime)!]
             } else {
-                nil
+                return []
             }
         case .running_stride_length:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .runningStrideLength)!
+                return [HKSampleType.quantityType(forIdentifier: .runningStrideLength)!]
             } else {
-                nil
+                return []
             }
         case .running_vertical_oscillation:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .runningVerticalOscillation)!
+                return [HKSampleType.quantityType(forIdentifier: .runningVerticalOscillation)!]
             } else {
-                nil
+                return []
             }
         case .six_minute_walk_test_distance:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .sixMinuteWalkTestDistance)!
+                return [HKSampleType.quantityType(forIdentifier: .sixMinuteWalkTestDistance)!]
             } else {
-                nil
+                return []
             }
         case .stair_ascent_speed:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .stairAscentSpeed)!
+                return [HKSampleType.quantityType(forIdentifier: .stairAscentSpeed)!]
             } else {
-                nil
+                return []
             }
         case .stair_descent_speed:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .stairDescentSpeed)!
+                return [HKSampleType.quantityType(forIdentifier: .stairDescentSpeed)!]
             } else {
-                nil
+                return []
             }
         case .walking_asymmetry_percentage:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .walkingAsymmetryPercentage)!
+                return [HKSampleType.quantityType(forIdentifier: .walkingAsymmetryPercentage)!]
             } else {
-                nil
+                return []
             }
         case .walking_double_support_percentage:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .walkingDoubleSupportPercentage)!
+                return [HKSampleType.quantityType(forIdentifier: .walkingDoubleSupportPercentage)!]
             } else {
-                nil
+                return []
             }
         case .walking_speed:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .walkingSpeed)!
+                return [HKSampleType.quantityType(forIdentifier: .walkingSpeed)!]
             } else {
-                nil
+                return []
             }
         case .walking_step_length:
             if #available(iOS 14.0, *) {
-                HKSampleType.quantityType(forIdentifier: .walkingStepLength)!
+                return [HKSampleType.quantityType(forIdentifier: .walkingStepLength)!]
             } else {
-                nil
+                return []
             }
         case .heart_rate:
-            HKSampleType.quantityType(forIdentifier: .heartRate)!
+            return [HKSampleType.quantityType(forIdentifier: .heartRate)!]
         case .resting_heart_rate:
-            HKSampleType.quantityType(forIdentifier: .restingHeartRate)!
+            return [HKSampleType.quantityType(forIdentifier: .restingHeartRate)!]
         case .walking_heart_rate_average:
-            HKSampleType.quantityType(forIdentifier: .walkingHeartRateAverage)!
+            return [HKSampleType.quantityType(forIdentifier: .walkingHeartRateAverage)!]
         case .heart_rate_variability_sdnn:
-            HKSampleType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+            return [HKSampleType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!]
         case .blood_pressure_systolic:
-            HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
+            let systolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
+            let diastolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+            return [systolicType, diastolicType]
         case .blood_pressure_diastolic:
-            HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+            let systolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureSystolic)!
+            let diastolicType = HKSampleType.quantityType(forIdentifier: .bloodPressureDiastolic)!
+            return [diastolicType, systolicType]
         case .blood_glucose:
-            HKSampleType.quantityType(forIdentifier: .bloodGlucose)!
+            return [HKSampleType.quantityType(forIdentifier: .bloodGlucose)!]
         case .vo2_max:
-            HKSampleType.quantityType(forIdentifier: .vo2Max)!
+            return [HKSampleType.quantityType(forIdentifier: .vo2Max)!]
         case .oxygen_saturation:
-            HKSampleType.quantityType(forIdentifier: .oxygenSaturation)!
+            return [HKSampleType.quantityType(forIdentifier: .oxygenSaturation)!]
         case .respiratory_rate:
-            HKSampleType.quantityType(forIdentifier: .respiratoryRate)!
+            return [HKSampleType.quantityType(forIdentifier: .respiratoryRate)!]
         case .active_energy_burned:
-            HKSampleType.quantityType(forIdentifier: .activeEnergyBurned)!
+            return [HKSampleType.quantityType(forIdentifier: .activeEnergyBurned)!]
         case .basal_energy_burned:
-            HKSampleType.quantityType(forIdentifier: .basalEnergyBurned)!
+            return [HKSampleType.quantityType(forIdentifier: .basalEnergyBurned)!]
         case .time_in_daylight:
             if #available(iOS 17.0, *) {
-                HKSampleType.quantityType(forIdentifier: .timeInDaylight)!
+                return [HKSampleType.quantityType(forIdentifier: .timeInDaylight)!]
             } else {
-                nil
+                return []
             }
         case .body_temperature:
-            HKSampleType.quantityType(forIdentifier: .bodyTemperature)!
+            return [HKSampleType.quantityType(forIdentifier: .bodyTemperature)!]
         case .basal_body_temperature:
-            HKSampleType.quantityType(forIdentifier: .basalBodyTemperature)!
+            return [HKSampleType.quantityType(forIdentifier: .basalBodyTemperature)!]
         case .sleeping_wrist_temperature:
             if #available(iOS 16.0, *) {
-                HKSampleType.quantityType(forIdentifier: .appleSleepingWristTemperature)!
+                return [HKSampleType.quantityType(forIdentifier: .appleSleepingWristTemperature)!]
             } else {
-                nil
+                return []
             }
         case .height:
-            HKSampleType.quantityType(forIdentifier: .height)!
+            return [HKSampleType.quantityType(forIdentifier: .height)!]
         case .weight:
-            HKSampleType.quantityType(forIdentifier: .bodyMass)!
+            return [HKSampleType.quantityType(forIdentifier: .bodyMass)!]
         case .lean_body_mass:
-            HKSampleType.quantityType(forIdentifier: .leanBodyMass)!
+            return [HKSampleType.quantityType(forIdentifier: .leanBodyMass)!]
         case .body_mass_index:
-            HKSampleType.quantityType(forIdentifier: .bodyMassIndex)!
+            return [HKSampleType.quantityType(forIdentifier: .bodyMassIndex)!]
         case .body_fat:
-            HKSampleType.quantityType(forIdentifier: .bodyFatPercentage)!
+            return [HKSampleType.quantityType(forIdentifier: .bodyFatPercentage)!]
         case .waist_circumference:
-            HKSampleType.quantityType(forIdentifier: .waistCircumference)!
+            return [HKSampleType.quantityType(forIdentifier: .waistCircumference)!]
         case .stand_time:
-            HKSampleType.quantityType(forIdentifier: .appleStandTime)!
+            return [HKSampleType.quantityType(forIdentifier: .appleStandTime)!]
         case .move_time:
             if #available(iOS 14.5, *) {
-                HKSampleType.quantityType(forIdentifier: .appleMoveTime)!
+                return [HKSampleType.quantityType(forIdentifier: .appleMoveTime)!]
             } else {
-                nil
+                return []
             }
         case .exercise_time:
-            HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!
+            return [HKSampleType.quantityType(forIdentifier: .appleExerciseTime)!]
         case .activity_summary:
-            HKSampleType.activitySummaryType()
+            return [HKSampleType.activitySummaryType()]
         case .gender:
-            HKCharacteristicType.characteristicType(forIdentifier: .biologicalSex)
+            return [HKCharacteristicType.characteristicType(forIdentifier: .biologicalSex)!]
         case .date_of_birth:
-            HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth)
+            return [HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth)!]
         case .exercise:
-            HKWorkoutType.workoutType()
-        case .device_lock:
-            nil
-        case .heart_rate_variability_rmssd:
-            nil
-        case .total_energy_burned:
-            nil
-        case .basal_metabolic_rate:
-            nil
-        case .body_water_mass:
-            nil
-        case .bone_mass:
-            nil
+            return [HKWorkoutType.workoutType()]
+        case .device_lock, .heart_rate_variability_rmssd, .total_energy_burned, .basal_metabolic_rate, .body_water_mass, .bone_mass:
+            return []
         case .energy_consumed:
-            HKQuantityType.quantityType(forIdentifier: .dietaryEnergyConsumed)!
+            return [HKQuantityType.quantityType(forIdentifier: .dietaryEnergyConsumed)!]
         }
     }
     
