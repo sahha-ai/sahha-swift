@@ -74,7 +74,7 @@ fileprivate actor DataManager {
                 let dataLog = try decoder.decode(DataLogRequest.self, from: encodedDataLog)
                 savedDataLogs.append(dataLog)
             } catch {
-                break
+                continue
             }
         }
         
