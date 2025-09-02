@@ -470,12 +470,12 @@ internal class HealthActivity {
         }
         
         for sensor in SahhaSensor.allCases {
-            
-            if let sampleType = sensor.objectType as? HKSampleType {
-                
-                Self.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] _, error in
-                    if let error = error {
-                        self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
+            for objType in sensor.objectType {
+                if let sampleType = objType as? HKSampleType {
+                    Self.store.enableBackgroundDelivery(for: sampleType, frequency: HKUpdateFrequency.immediate) { [weak self] _, error in
+                        if let error = error {
+                            self?.filterError(error, path: "HealthActivity", method: "enableBackgroundDelivery", body: "self?.store.enableBackgroundDelivery")
+                        }
                     }
                 }
             }
@@ -987,10 +987,12 @@ internal class HealthActivity {
             return
         }
         
-        guard let quantityType = sensor.objectType as? HKQuantityType else {
+        guard let objType = sensor.objectType.first,
+              let quantityType = objType as? HKQuantityType else {
             callback("Stats are not available for \(sensor.rawValue)", [])
             return
         }
+        
         let start: Date
         var end = Calendar.current.date(byAdding: .day, value: 1, to: endDateTime) ?? endDateTime
         end = Calendar.current.startOfDay(for: end)
