@@ -54,6 +54,61 @@ class APIController {
         APIRequest.execute(ApiEndpoint(.biomarker, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
     }
     
+    static func getArchetype(
+        _ archetype: SahhaArchetype,
+        startDateTime: Date,
+        endDateTime: Date,
+        periodicity: SahhaArchetypePeriodicity,
+        _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
+    ) {
+        var queryParams: [(key: String, value: String)] = []
+        queryParams.append((key: "name", value: archetype.rawValue))
+        queryParams.append((key: "startDateTime", value: startDateTime.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDateTime.toDateTime))
+        queryParams.append((key: "periodicity", value: periodicity.rawValue))
+        APIRequest.execute(ApiEndpoint(.archetypes, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
+    }
+    
+    static func getInsightTrend(
+        _ category: SahhaInsightTrendCategory,
+        startDateTime: Date,
+        endDateTime: Date,
+        _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
+    ) {
+        var queryParams: [(key: String, value: String)] = []
+        switch category {
+        case let .factor(factor):
+            queryParams.append((key: "category", value: "factor"))
+            queryParams.append((key: "name", value: factor.rawValue))
+        case let .score(score):
+            queryParams.append((key: "category", value: "score"))
+            queryParams.append((key: "name", value: score.rawValue))
+        }
+        queryParams.append((key: "startDateTime", value: startDateTime.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDateTime.toDateTime))
+        APIRequest.execute(ApiEndpoint(.insightTrend, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
+    }
+    
+    static func getInsightComparison(
+        _ category: SahhaInsightComparisonCategory,
+        startDateTime: Date,
+        endDateTime: Date,
+        _ onComplete: @escaping (Result<DataResponse, SahhaError>) -> Void
+    ) {
+        var queryParams: [(key: String, value: String)] = []
+        switch category {
+        case let .biomarker(biomarker):
+            queryParams.append((key: "category", value: "biomarker"))
+            queryParams.append((key: "name", value: biomarker.rawValue))
+        case let .score(score):
+            queryParams.append((key: "category", value: "score"))
+            queryParams.append((key: "name", value: score.rawValue))
+        }
+        queryParams.append((key: "startDateTime", value: startDateTime.toDateTime))
+        queryParams.append((key: "endDateTime", value: endDateTime.toDateTime))
+        APIRequest.execute(ApiEndpoint(.insightComparison, queryParams), .get, decodable: DataResponse.self, onComplete: onComplete)
+    }
+    
     static func postDataLog(body: [DataLogRequest], _ onComplete: @escaping (Result<EmptyResponse, SahhaError>) -> Void) {
         APIRequest.execute(ApiEndpoint(.dataLog), .post, encodable: body, decodable: EmptyResponse.self, onComplete: onComplete)
     }

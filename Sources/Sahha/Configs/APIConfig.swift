@@ -36,6 +36,9 @@ class ApiEndpoint {
         case score = "profile/score"
         case biomarker = "profile/biomarker"
         case dataLog = "profile/data/log"
+        case insightComparison = "profile/insight/comparison"
+        case insightTrend = "profile/insight/trend"
+        case archetypes = "profile/archetypes"
     }
     
     let endpointPath: EndpointPath
