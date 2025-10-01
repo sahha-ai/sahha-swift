@@ -235,7 +235,76 @@ public class Sahha {
         }
     }
     
+    // MARK: - Insight Comparison
     
+    public static func getInsightComparison(
+        category: SahhaInsightComparisonCategory,
+        startDateTime: Date,
+        endDateTime: Date,
+        callback: @escaping (String?, String?) -> Void
+    ) {
+        APIController.getInsightComparison(
+            category,
+            startDateTime: startDateTime,
+            endDateTime: endDateTime
+        ) { result in
+            switch result {
+            case .success(let response):
+                let json = APIController.getJsonString(response)
+                callback(json.error, json.value)
+            case .failure(let error):
+                callback(error.message, nil)
+            }
+        }
+    }
+    
+    // MARK: - Insight Trend
+    
+    public static func getInsightTrend(
+        category: SahhaInsightTrendCategory,
+        startDateTime: Date,
+        endDateTime: Date,
+        callback: @escaping (String?, String?) -> Void
+    ) {
+        APIController.getInsightTrend(
+            category,
+            startDateTime: startDateTime,
+            endDateTime: endDateTime
+        ) { result in
+            switch result {
+            case .success(let response):
+                let json = APIController.getJsonString(response)
+                callback(json.error, json.value)
+            case .failure(let error):
+                callback(error.message, nil)
+            }
+        }
+    }
+    
+    // MARK: - Archetypes
+    
+    public static func getArchetype(
+        archetype: SahhaArchetype,
+        startDateTime: Date,
+        endDateTime: Date,
+        periodicity: SahhaArchetypePeriodicity,
+        callback: @escaping (String?, String?) -> Void
+    ) {
+        APIController.getArchetype(
+            archetype,
+            startDateTime: startDateTime,
+            endDateTime: endDateTime,
+            periodicity: periodicity,
+        ) { result in
+            switch result {
+            case .success(let response):
+                let json = APIController.getJsonString(response)
+                callback(json.error, json.value)
+            case .failure(let error):
+                callback(error.message, nil)
+            }
+        }
+    }
     
     // MARK: - Settings
     
