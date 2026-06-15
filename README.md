@@ -1,3 +1,8 @@
+# THIS SDK IS DEPRECATED
+## Please use https://github.com/sahha-ai/sahha-ios for future development
+
+
+
 # Sahha SDK for iOS Apps
 
 The Sahha SDK provides a convenient way for iOS apps to connect to the Sahha API.
